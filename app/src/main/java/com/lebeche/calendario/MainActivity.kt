@@ -28,7 +28,7 @@ class MainActivity : ComponentActivity() {
     private fun requestInitialPermissions() {
         val perms = mutableListOf<String>()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
         ) {
             perms.add(Manifest.permission.POST_NOTIFICATIONS)
         }

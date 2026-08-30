@@ -16,7 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -72,8 +72,12 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun addAccount(name: String, url: String, user: String, pass: String, insecure: Boolean) {
         viewModelScope.launch {
-            val (_, discovered) = repo.addAccount(name, url, user, pass, insecure)
-            message = "Cuenta añadida · $discovered calendarios encontrados"
+            val result = repo.addAccount(name, url, user, pass, insecure)
+            message = if (result.discovered > 0) {
+                "Cuenta añadida · ${result.discovered} calendarios encontrados"
+            } else {
+                "No se encontraron calendarios." + (result.error?.takeIf { it.isNotBlank() }?.let { "\n$it" } ?: "")
+            }
             refresh()
         }
     }
@@ -108,8 +112,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 fun SettingsScreen(onBack: () -> Unit) {
     val vm: SettingsViewModel = viewModel()
     var showForm by remember { mutableStateOf(false) }
-    var name by remember { mutableStateOf("") }
-    var url by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf(Repository.DEFAULT_ACCOUNT_NAME) }
+    var url by remember { mutableStateOf(Repository.DEFAULT_CALDAV_URL) }
     var user by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
     var insecure by remember { mutableStateOf(false) }
@@ -119,7 +123,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             TopAppBar(
                 title = { Text("Ajustes") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Volver") }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver") }
                 }
             )
         }

@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -92,6 +92,7 @@ fun EventEditScreen(eventId: Long?, onDone: () -> Unit) {
     var remoteUid by remember { mutableStateOf<String?>(null) }
     var remoteHref by remember { mutableStateOf<String?>(null) }
     var etag by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
@@ -123,7 +124,7 @@ fun EventEditScreen(eventId: Long?, onDone: () -> Unit) {
                 endMinute = en.minute
             }
         } else {
-            selectedCalendarId = cals.firstOrNull()?.id ?: 0L
+            selectedCalendarId = cals.firstOrNull { !it.readOnly }?.id ?: cals.firstOrNull()?.id ?: 0L
         }
         loading = false
     }
@@ -150,8 +151,12 @@ fun EventEditScreen(eventId: Long?, onDone: () -> Unit) {
             reminderMinutes = reminderMinutes
         )
         scope.launch {
-            repo.saveEvent(e)
-            onDone()
+            val result = repo.saveEvent(e)
+            if (result.error != null) {
+                errorMessage = result.error
+            } else {
+                onDone()
+            }
         }
     }
 
@@ -160,7 +165,7 @@ fun EventEditScreen(eventId: Long?, onDone: () -> Unit) {
             TopAppBar(
                 title = { Text(if (eventId == null) "Nuevo evento" else "Editar evento") },
                 navigationIcon = {
-                    IconButton(onClick = onDone) { Icon(Icons.Filled.ArrowBack, "Volver") }
+                    IconButton(onClick = onDone) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver") }
                 },
                 actions = {
                     TextButton(onClick = { save() }, enabled = !loading) { Text("Guardar") }
@@ -176,6 +181,15 @@ fun EventEditScreen(eventId: Long?, onDone: () -> Unit) {
                 label = { Text("Título") }, modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(12.dp))
+
+            errorMessage?.let {
+                Text(
+                    it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Todo el día", Modifier.weight(1f))
@@ -326,7 +340,9 @@ fun EventEditScreen(eventId: Long?, onDone: () -> Unit) {
 @Composable
 private fun CalendarSelector(calendars: List<CalInfo>, selectedId: Long, onSelect: (Long) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    val label = calendars.firstOrNull { it.id == selectedId }?.displayName ?: "Seleccionar calendario"
+    val label = calendars.firstOrNull { it.id == selectedId }?.let {
+        if (it.readOnly) "${it.displayName} (solo lectura)" else it.displayName
+    } ?: "Seleccionar calendario"
     Box {
         OutlinedTextField(
             value = label, onValueChange = {}, readOnly = true,
@@ -336,7 +352,10 @@ private fun CalendarSelector(calendars: List<CalInfo>, selectedId: Long, onSelec
         Box(Modifier.matchParentSize().clickable { expanded = true })
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             calendars.forEach { c ->
-                DropdownMenuItem(text = { Text(c.displayName) }, onClick = { onSelect(c.id); expanded = false })
+                DropdownMenuItem(
+                    text = { Text(if (c.readOnly) "${c.displayName} (solo lectura)" else c.displayName) },
+                    onClick = { onSelect(c.id); expanded = false }
+                )
             }
         }
     }

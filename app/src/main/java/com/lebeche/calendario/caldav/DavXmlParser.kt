@@ -36,6 +36,7 @@ object DavXmlParser {
         val stack = mutableListOf<String>()
         var current: DavResponse? = null
         var inResponse = false
+        var inPrivilegeSet = false
         var textBuf = StringBuilder()
 
         var eventType = parser.eventType
@@ -48,20 +49,24 @@ object DavXmlParser {
                         current = DavResponse()
                         inResponse = true
                     }
+                    if (name == "current-user-privilege-set") inPrivilegeSet = true
+                    if (inPrivilegeSet && (name == "write" || name == "write-content" || name == "all")) {
+                        current?.props?.put("writable", "1")
+                    }
                     textBuf = StringBuilder()
                 }
 
-                XmlPullParser.TEXT -> textBuf.append(parser.text)
+                XmlPullParser.TEXT, XmlPullParser.CDSECT -> textBuf.append(parser.text)
 
                 XmlPullParser.END_TAG -> {
                     val name = parser.name?.substringAfter(':') ?: ""
-                    val text = textBuf.toString()
+                    val text = textBuf.toString().trim()
 
                     if (inResponse && current != null) {
                         val path = stack.joinToString("/")
                         when {
-                            path == "response/href" -> current.href = text
-                            path == "response/status" -> current.status = text
+                            path.endsWith("/response/href") -> current.href = text
+                            path.endsWith("/response/status") -> current.status = text
                             path.endsWith("/prop/displayname") -> current.props["displayname"] = text
                             path.endsWith("/prop/calendar-color") -> current.props["calendar-color"] = text
                             path.endsWith("/prop/getctag") -> current.props["getctag"] = text
@@ -78,6 +83,7 @@ object DavXmlParser {
                     }
 
                     stack.removeAt(stack.size - 1)
+                    if (name == "current-user-privilege-set") inPrivilegeSet = false
                     if (name == "response") {
                         current?.let { responses.add(it) }
                         current = null

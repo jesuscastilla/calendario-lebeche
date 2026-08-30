@@ -1,0 +1,9 @@
+- [x] Update build configuration (`targetSdk 28`)
+- [x] Fix App Icon (centering and cropping)
+    - [x] Create `ic_launcher_foreground.xml` (Vector)
+    - [x] Update `ic_launcher.xml`
+    - [x] Update `ic_launcher_round.xml`
+- [x] Improve startup stability
+    - [x] Update `App.kt`
+    - [x] Update `MainActivity.kt`
+- [x] Verify build and deployment

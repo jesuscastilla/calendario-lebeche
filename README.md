@@ -91,24 +91,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File G:\GITHUB\calendario-lebeche
 
 ## Conectar con Synology Calendar
 
-1. Instala y abre la app.
-2. Ve a **Ajustes** → **Añadir cuenta CalDAV**.
-3. Rellena:
-   - **Nombre**: por ejemplo `Synology`.
-   - **URL CalDAV**: la raíz CalDAV del NAS. Ejemplos habituales:
-     - `https://pelotxo.synology.me/caldav`
-     - `https://tu-nas:5006/caldav`
-     - `https://tu-nas/caldav/principals/users/<usuario>/calendar/`
-   - **Usuario** y **contraseña** de la cuenta del NAS.
-   - Activa **"Aceptar certificados autofirmados"** si el NAS usa un certificado propio
-     (muy habitual en Synology).
-4. Pulsa **Conectar**. La app descubre automáticamente los calendarios disponibles.
-5. Activa/desactiva cada calendario y usa **Sincronizar** cuando quieras.
+1. Instala y abre la app. En la **primera apertura** se muestra una pantalla de bienvenida.
+2. Introduce el **usuario** y la **contraseña** de la cuenta CalDAV (contacta con **Pelotxo** si no conoces tus credenciales de acceso). No hace falta escribir la URL del NAS.
+3. Pulsa **Conectar**. La app se conecta a la URL por defecto `https://pelotxo.synology.me:5001/caldav/` y descubre automaticamente los calendarios.
+4. Activa/desactiva cada calendario y usa **Sincronizar** cuando quieras.
 
 > **Nota Synology**: el servicio CalDAV debe estar habilitado en el NAS (Synology Calendar →
-> Configuración). La ruta suele ser `https://<host>/caldav` o el puerto dedicado 5006.
-
----
+> Configuracion). La ruta real es `https://pelotxo.synology.me:5001/caldav/` (la barra final es obligatoria).
+> Si quieres usar otro servidor, ve a **Ajustes** → **Añadir cuenta CalDAV**.---
 
 ## Permisos
 

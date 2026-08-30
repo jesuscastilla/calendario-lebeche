@@ -21,6 +21,7 @@ data class CalInfo(
     val ctag: String? = null,
     val syncToken: String? = null,
     val enabled: Boolean = true,
+    val readOnly: Boolean = false,
     val systemCalendarId: Long? = null
 )
 

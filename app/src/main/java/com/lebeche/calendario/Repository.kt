@@ -15,6 +15,19 @@ import kotlinx.coroutines.withContext
 
 data class SyncSummary(val errors: MutableList<String> = mutableListOf())
 
+/** Resultado de añadir una cuenta CalDAV. */
+data class AddAccountResult(
+    val accountId: Long,
+    val discovered: Int,
+    val error: String? = null
+)
+
+/** Resultado de guardar un evento (devuelve el error si no pudo subirse). */
+data class SaveEventResult(
+    val eventId: Long,
+    val error: String? = null
+)
+
 /** Punto de acceso a datos + lógica de sincronización para la interfaz. */
 class Repository private constructor(private val context: Context) {
 
@@ -24,6 +37,12 @@ class Repository private constructor(private val context: Context) {
     companion object {
         @Volatile
         private var instance: Repository? = null
+
+        /** URL CalDAV por defecto del NAS de la asociación. */
+        const val DEFAULT_CALDAV_URL = "https://pelotxo.synology.me:5001/caldav/"
+
+        /** Nombre por defecto para la cuenta principal. */
+        const val DEFAULT_ACCOUNT_NAME = "Pelotxo"
 
         fun get(context: Context): Repository =
             instance ?: synchronized(this) {
@@ -57,7 +76,7 @@ class Repository private constructor(private val context: Context) {
 
     // ------------------------------------------------------------------ escritura de eventos
 
-    suspend fun saveEvent(event: Event): Long = withContext(Dispatchers.IO) {
+    suspend fun saveEvent(event: Event): SaveEventResult = withContext(Dispatchers.IO) {
         val uid = if (event.remoteUid.isNullOrBlank()) java.util.UUID.randomUUID().toString() else event.remoteUid
         val e = event.copy(remoteUid = uid, dirty = true)
 
@@ -66,7 +85,7 @@ class Repository private constructor(private val context: Context) {
             e.id
         }
 
-        val saved = db.getEvent(id) ?: return@withContext id
+        val saved = db.getEvent(id) ?: return@withContext SaveEventResult(id)
         val cal = db.getCalendar(saved.calendarId)
 
         if (cal != null) {
@@ -74,17 +93,25 @@ class Repository private constructor(private val context: Context) {
         }
         ReminderScheduler.scheduleForEvent(context, saved)
 
-        try {
-            val account = cal?.let { db.getAccount(it.accountId) }
-            if (account != null && cal != null) {
-                val put = caldav.putEvent(account, cal, saved, ICalHelper.serialize(saved), saved.etag)
-                db.markEventRemote(id, uid, put.href, put.etag)
-                db.setEventDirty(id, false)
-            }
-        } catch (ex: Exception) {
-            // se subirá en la próxima sincronización
+        if (cal != null && cal.readOnly) {
+            return@withContext SaveEventResult(id, "Este calendario es de solo lectura")
         }
-        id
+
+        try {
+            if (cal != null) {
+                val account = db.getAccount(cal.accountId)
+                if (account != null) {
+                    val put = caldav.putEvent(account, cal, saved, ICalHelper.serialize(saved), saved.etag)
+                    db.markEventRemote(id, uid, put.href, put.etag)
+                    db.setEventDirty(id, false)
+                }
+            }
+            SaveEventResult(id)
+        } catch (ex: Exception) {
+            android.util.Log.e("Repo", "saveEvent PUT fallido para evento $id", ex)
+            // se subirá en la próxima sincronización
+            SaveEventResult(id, ex.message ?: ex.javaClass.simpleName)
+        }
     }
 
     suspend fun deleteEvent(id: Long) = withContext(Dispatchers.IO) {
@@ -112,20 +139,23 @@ class Repository private constructor(private val context: Context) {
 
     // ------------------------------------------------------------------ cuentas
 
-    suspend fun addAccount(name: String, baseUrl: String, username: String, password: String, insecureTls: Boolean): Pair<Long, Int> =
+    suspend fun addAccount(name: String, baseUrl: String, username: String, password: String, insecureTls: Boolean): AddAccountResult =
         withContext(Dispatchers.IO) {
             val id = db.insertAccount(name, baseUrl, username, password, insecureTls)
             val account = Account(id, name, baseUrl, username, password, insecureTls)
             var discovered = 0
+            var error: String? = null
             try {
-                for (c in caldav.discover(account)) {
+                val result = caldav.discover(account)
+                for (c in result.calendars) {
                     db.insertCalendar(c.copy(accountId = id))
                     discovered++
                 }
+                error = result.error
             } catch (ex: Exception) {
-                // la cuenta se guarda igualmente; se puede reintentar sincronizando
+                error = ex.message ?: ex.javaClass.simpleName
             }
-            id to discovered
+            AddAccountResult(id, discovered, error)
         }
 
     suspend fun deleteAccount(id: Long) = withContext(Dispatchers.IO) {
@@ -149,7 +179,7 @@ class Repository private constructor(private val context: Context) {
         val summary = SyncSummary()
         for (account in db.getAccounts()) {
             try {
-                syncAccount(account)
+                syncAccount(account, summary.errors)
             } catch (e: Exception) {
                 summary.errors.add("${account.name}: ${e.message ?: "error"}")
             }
@@ -163,7 +193,7 @@ class Repository private constructor(private val context: Context) {
         val account = db.getAccount(id)
         if (account != null) {
             try {
-                syncAccount(account)
+                syncAccount(account, summary.errors)
             } catch (e: Exception) {
                 summary.errors.add("${account.name}: ${e.message ?: "error"}")
             }
@@ -172,11 +202,15 @@ class Repository private constructor(private val context: Context) {
         summary
     }
 
-    private fun syncAccount(account: Account) {
+    private fun syncAccount(account: Account, errors: MutableList<String>) {
         val calendars = db.getCalendars(account.id).filter { it.enabled }
         for (cal in calendars) {
-            pushDirty(account, cal)
-            pull(account, cal)
+            try {
+                pushDirty(account, cal)
+                pull(account, cal)
+            } catch (e: Exception) {
+                errors.add("${account.name} · ${cal.displayName}: ${e.message ?: e.javaClass.simpleName}")
+            }
         }
         db.updateAccountSyncTime(account.id, System.currentTimeMillis())
     }
@@ -206,6 +240,7 @@ class Repository private constructor(private val context: Context) {
                         SystemCalendarSync.upsertEvent(context, updated, cal)?.let { db.setEventSystemId(e.id, it) }
                     }
                 } catch (ex: Exception) {
+                    android.util.Log.e("Repo", "pushDirty PUT fallido para ${e.id}", ex)
                     // queda dirty para la próxima vez
                 }
             }
@@ -251,4 +286,3 @@ class Repository private constructor(private val context: Context) {
         db.updateCalendarSync(cal.id, cal.ctag, result.newSyncToken)
     }
 }
-

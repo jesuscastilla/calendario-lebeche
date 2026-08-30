@@ -1,0 +1,8 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Usamos la imagen original pero la centramos y escalamos para que no se recorte -->
+    <item
+        android:drawable="@mipmap/ic_launcher_foreground"
+        android:width="72dp"
+        android:height="72dp"
+        android:gravity="center" />
+</layer-list>

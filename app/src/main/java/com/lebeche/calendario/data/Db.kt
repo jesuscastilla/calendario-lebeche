@@ -10,7 +10,7 @@ import android.database.sqlite.SQLiteOpenHelper
  * Base de datos local (SQLite) de la aplicación.
  * Almacena cuentas, calendarios remotos y eventos; la contraseña va cifrada.
  */
-class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calendario.db", null, 1) {
+class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calendario.db", null, 2) {
 
     companion object {
         @Volatile
@@ -52,6 +52,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calen
                 ctag TEXT,
                 sync_token TEXT,
                 enabled INTEGER NOT NULL DEFAULT 1,
+                read_only INTEGER NOT NULL DEFAULT 0,
                 system_calendar_id INTEGER
             )
             """.trimIndent()
@@ -81,7 +82,9 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calen
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // v1: nada que migrar todavía.
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE calendars ADD COLUMN read_only INTEGER NOT NULL DEFAULT 0")
+        }
     }
 
     // ------------------------------------------------------------------ cuentas
@@ -143,6 +146,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calen
             put("ctag", cal.ctag)
             put("sync_token", cal.syncToken)
             put("enabled", if (cal.enabled) 1 else 0)
+            put("read_only", if (cal.readOnly) 1 else 0)
             if (cal.systemCalendarId != null) put("system_calendar_id", cal.systemCalendarId)
         }
         return writableDatabase.insertOrThrow("calendars", null, cv)
@@ -198,6 +202,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calen
         ctag = c.getString(c.getColumnIndexOrThrow("ctag")),
         syncToken = c.getString(c.getColumnIndexOrThrow("sync_token")),
         enabled = c.getInt(c.getColumnIndexOrThrow("enabled")) == 1,
+        readOnly = c.getInt(c.getColumnIndexOrThrow("read_only")) == 1,
         systemCalendarId = c.getLong(c.getColumnIndexOrThrow("system_calendar_id")).let {
             if (c.isNull(c.getColumnIndexOrThrow("system_calendar_id"))) null else it
         }

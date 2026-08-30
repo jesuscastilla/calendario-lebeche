@@ -69,7 +69,6 @@ object SystemCalendarSync {
             put(CalendarContract.Events.DTEND, event.dtend)
             put(CalendarContract.Events.ALL_DAY, if (event.allDay) 1 else 0)
             put(CalendarContract.Events.EVENT_TIMEZONE, "UTC")
-            put(CalendarContract.Events.SYNC_DATA1, event.id.toString())
             if (!event.rrule.isNullOrBlank()) put(CalendarContract.Events.RRULE, event.rrule)
         }
 

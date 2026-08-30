@@ -11,16 +11,16 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
-android {
+    android {
     namespace 'com.lebeche.calendario'
-    compileSdk 36
+    compileSdk 35
 
     defaultConfig {
         applicationId 'com.lebeche.calendario'
         minSdk 28
-        targetSdk 36
-        versionCode 1
-        versionName '1.0'
+        targetSdk 35
+        versionCode 3
+        versionName '1.2'
     }
 
     signingConfigs {
@@ -36,10 +36,12 @@ android {
 
     buildTypes {
         release {
-            // Minificado desactivado por ahora para garantizar un APK funcional
-            // (se puede activar más adelante junto con las reglas de ProGuard).
-            minifyEnabled false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            ndk {
+                debugSymbolLevel 'FULL'
+            }
             if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
             }
@@ -53,6 +55,7 @@ android {
 
     buildFeatures {
         compose true
+        buildConfig true
     }
 
     lint {
