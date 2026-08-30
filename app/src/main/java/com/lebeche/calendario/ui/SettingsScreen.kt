@@ -15,8 +15,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,7 +41,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -117,6 +123,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var user by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
     var insecure by remember { mutableStateOf(false) }
+    var passVisible by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -174,7 +181,20 @@ fun SettingsScreen(onBack: () -> Unit) {
                     OutlinedTextField(
                         value = pass, onValueChange = { pass = it },
                         label = { Text("Contraseña") }, modifier = Modifier.fillMaxWidth(),
-                        visualTransformation = PasswordVisualTransformation()
+                        visualTransformation = if (passVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            autoCorrectEnabled = false,
+                            capitalization = KeyboardCapitalization.None
+                        ),
+                        trailingIcon = {
+                            IconButton(onClick = { passVisible = !passVisible }) {
+                                Icon(
+                                    imageVector = if (passVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                    contentDescription = if (passVisible) "Ocultar contraseña" else "Mostrar contraseña"
+                                )
+                            }
+                        },
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Aceptar certificados autofirmados", Modifier.weight(1f))
@@ -183,7 +203,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     Spacer(Modifier.height(8.dp))
                     Button(
                         onClick = {
-                            vm.addAccount(name.trim(), url.trim(), user.trim(), pass, insecure)
+                            vm.addAccount(name.trim(), url.trim(), user.trim(), pass.trim(), insecure)
                             name = ""; url = ""; user = ""; pass = ""
                             showForm = false
                         },

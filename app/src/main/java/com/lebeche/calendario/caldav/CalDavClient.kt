@@ -86,7 +86,14 @@ class CalDavClient {
             return DiscoveryResult(listOf(it))
         }
 
-        return DiscoveryResult(emptyList(), diag.toString())
+        return DiscoveryResult(
+            emptyList(),
+            if (diag.contains("HTTP 401")) {
+                "Usuario o contraseña incorrectos (HTTP 401). Revisa tus credenciales CalDAV."
+            } else {
+                diag.toString()
+            }
+        )
     }
 
     private fun discoverPrincipal(account: Account, base: String, diag: StringBuilder): String? {
