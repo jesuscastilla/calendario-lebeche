@@ -197,41 +197,23 @@ fun EventEditScreen(eventId: Long?, onDone: () -> Unit) {
             }
             Spacer(Modifier.height(12.dp))
 
-            OutlinedTextField(
-                value = dateFormatter.format(startDate), onValueChange = {}, readOnly = true,
-                label = { Text("Fecha inicio") },
-                modifier = Modifier.fillMaxWidth().clickable { showStartDatePicker = true },
-                trailingIcon = { Icon(Icons.Filled.ArrowDropDown, null) }
-            )
+            ClickableField("Fecha inicio", dateFormatter.format(startDate)) { showStartDatePicker = true }
             Spacer(Modifier.height(12.dp))
 
             if (!allDay) {
-                OutlinedTextField(
-                    value = String.format(Locale.getDefault(), "%02d:%02d", startHour, startMinute),
-                    onValueChange = {}, readOnly = true,
-                    label = { Text("Hora inicio") },
-                    modifier = Modifier.fillMaxWidth().clickable { showStartTimePicker = true },
-                    trailingIcon = { Icon(Icons.Filled.ArrowDropDown, null) }
-                )
+                ClickableField("Hora inicio", String.format(Locale.getDefault(), "%02d:%02d", startHour, startMinute)) {
+                    showStartTimePicker = true
+                }
                 Spacer(Modifier.height(12.dp))
             }
 
-            OutlinedTextField(
-                value = dateFormatter.format(endDate), onValueChange = {}, readOnly = true,
-                label = { Text("Fecha fin") },
-                modifier = Modifier.fillMaxWidth().clickable { showEndDatePicker = true },
-                trailingIcon = { Icon(Icons.Filled.ArrowDropDown, null) }
-            )
+            ClickableField("Fecha fin", dateFormatter.format(endDate)) { showEndDatePicker = true }
             Spacer(Modifier.height(12.dp))
 
             if (!allDay) {
-                OutlinedTextField(
-                    value = String.format(Locale.getDefault(), "%02d:%02d", endHour, endMinute),
-                    onValueChange = {}, readOnly = true,
-                    label = { Text("Hora fin") },
-                    modifier = Modifier.fillMaxWidth().clickable { showEndTimePicker = true },
-                    trailingIcon = { Icon(Icons.Filled.ArrowDropDown, null) }
-                )
+                ClickableField("Hora fin", String.format(Locale.getDefault(), "%02d:%02d", endHour, endMinute)) {
+                    showEndTimePicker = true
+                }
                 Spacer(Modifier.height(12.dp))
             }
 
@@ -334,6 +316,18 @@ fun EventEditScreen(eventId: Long?, onDone: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ClickableField(label: String, value: String, onClick: () -> Unit) {
+    Box {
+        OutlinedTextField(
+            value = value, onValueChange = {}, readOnly = true,
+            label = { Text(label) }, modifier = Modifier.fillMaxWidth(),
+            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, null) }
+        )
+        Box(Modifier.matchParentSize().clickable { onClick() })
     }
 }
 

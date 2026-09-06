@@ -25,10 +25,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var isSyncing by mutableStateOf(false)
     var syncMessage by mutableStateOf<String?>(null)
 
-    init {
-        refresh()
-    }
-
     fun refresh() {
         viewModelScope.launch {
             calendars = repo.allCalendars()

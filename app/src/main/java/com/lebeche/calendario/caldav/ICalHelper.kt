@@ -7,6 +7,7 @@ import biweekly.property.DateEnd
 import biweekly.property.DateStart
 import com.lebeche.calendario.data.Event
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Date
@@ -22,8 +23,12 @@ object ICalHelper {
         val dateStart = v.getDateStart()?.getValue() // ICalDate extiende java.util.Date
         val dateEnd = v.getDateEnd()?.getValue()
         val allDay = dateStart?.hasTime() == false
-        val start = dateStart?.time ?: 0L
-        val end = dateEnd?.time ?: start
+        val start = dateStart?.let { toEpochMillis(it, allDay) } ?: 0L
+        val end = when {
+            dateEnd != null -> toEpochMillis(dateEnd, allDay)
+            allDay -> start + 86_400_000L
+            else -> start
+        }
 
         return Event(
             calendarId = calendarId,
@@ -117,5 +122,21 @@ object ICalHelper {
             }
         }
         return null
+    }
+
+    /**
+     * Convierte un ICalDate a epoch millis. Para eventos "todo el día", biweekly
+     * representa la fecha a las 00:00 en la zona local del dispositivo; lo
+     * normalizamos a medianoche UTC para que no se desplace un día.
+     */
+    private fun toEpochMillis(d: java.util.Date, allDay: Boolean): Long {
+        if (!allDay) return d.time
+        val c = java.util.Calendar.getInstance()
+        c.time = d
+        return LocalDate.of(
+            c.get(java.util.Calendar.YEAR),
+            c.get(java.util.Calendar.MONTH) + 1,
+            c.get(java.util.Calendar.DAY_OF_MONTH)
+        ).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
     }
 }

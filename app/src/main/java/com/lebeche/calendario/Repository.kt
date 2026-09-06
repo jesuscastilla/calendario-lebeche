@@ -80,22 +80,22 @@ class Repository private constructor(private val context: Context) {
         val uid = if (event.remoteUid.isNullOrBlank()) java.util.UUID.randomUUID().toString() else event.remoteUid
         val e = event.copy(remoteUid = uid, dirty = true)
 
+        val cal = db.getCalendar(e.calendarId)
+        if (cal != null && cal.readOnly) {
+            return@withContext SaveEventResult(e.id, "Este calendario es de solo lectura")
+        }
+
         val id: Long = if (e.id == 0L) db.insertEvent(e) else {
             db.updateEvent(e)
             e.id
         }
 
         val saved = db.getEvent(id) ?: return@withContext SaveEventResult(id)
-        val cal = db.getCalendar(saved.calendarId)
 
         if (cal != null) {
             SystemCalendarSync.upsertEvent(context, saved, cal)?.let { db.setEventSystemId(id, it) }
         }
         ReminderScheduler.scheduleForEvent(context, saved)
-
-        if (cal != null && cal.readOnly) {
-            return@withContext SaveEventResult(id, "Este calendario es de solo lectura")
-        }
 
         try {
             if (cal != null) {
@@ -206,7 +206,7 @@ class Repository private constructor(private val context: Context) {
         val calendars = db.getCalendars(account.id).filter { it.enabled }
         for (cal in calendars) {
             try {
-                pushDirty(account, cal)
+                if (!cal.readOnly) pushDirty(account, cal)
                 pull(account, cal)
             } catch (e: Exception) {
                 errors.add("${account.name} · ${cal.displayName}: ${e.message ?: e.javaClass.simpleName}")
@@ -266,16 +266,16 @@ class Repository private constructor(private val context: Context) {
             val parsed = ICalHelper.parse(re.icalData ?: continue, cal.id, re.href, re.etag) ?: continue
             val existing = parsed.remoteUid?.let { byUid[it] } ?: byHref[re.href]
             if (existing != null) {
+                // No pisamos un evento local pendiente de subir (dirty): se
+                // sincronizará en el siguiente push.
+                if (existing.dirty) continue
                 val updated = parsed.copy(
                     id = existing.id,
                     reminderMinutes = existing.reminderMinutes,
-                    systemEventId = existing.systemEventId,
-                    dirty = existing.dirty
+                    systemEventId = existing.systemEventId
                 )
                 db.updateEvent(updated)
-                if (!existing.dirty) {
-                    SystemCalendarSync.upsertEvent(context, updated, cal)?.let { db.setEventSystemId(existing.id, it) }
-                }
+                SystemCalendarSync.upsertEvent(context, updated, cal)?.let { db.setEventSystemId(existing.id, it) }
             } else {
                 val newId = db.insertEvent(parsed)
                 val ev = parsed.copy(id = newId)

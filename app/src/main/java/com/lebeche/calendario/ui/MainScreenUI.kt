@@ -35,6 +35,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,6 +73,10 @@ fun MainScreen(
 ) {
     val vm: MainViewModel = viewModel()
     val colorMap = vm.calendars.associate { it.id to it.color }
+
+    // Refresca cada vez que se vuelve a esta pantalla (p. ej. tras crear/editar
+    // o borrar un evento) para que la agenda refleje el estado más reciente.
+    LaunchedEffect(Unit) { vm.refresh() }
 
     Scaffold(
         topBar = {
