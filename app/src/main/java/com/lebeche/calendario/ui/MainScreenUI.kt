@@ -205,17 +205,19 @@ private fun MonthGridBody(
     for (d in 1..month.lengthOfMonth()) cells.add(month.atDay(d))
     while (cells.size < 42) cells.add(null)
 
-    cells.chunked(7).forEach { row ->
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-            row.forEach { date ->
-                DayCell(
-                    modifier = Modifier.weight(1f).aspectRatio(1f),
-                    date = date,
-                    selected = selected,
-                    events = byDay[date].orEmpty(),
-                    colorMap = colorMap,
-                    onSelect = onSelect
-                )
+    Column {
+        cells.chunked(7).forEach { row ->
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+                row.forEach { date ->
+                    DayCell(
+                        modifier = Modifier.weight(1f).aspectRatio(1f),
+                        date = date,
+                        selected = selected,
+                        events = byDay[date].orEmpty(),
+                        colorMap = colorMap,
+                        onSelect = onSelect
+                    )
+                }
             }
         }
     }
