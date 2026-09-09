@@ -1,6 +1,11 @@
 package com.lebeche.calendario.ui
 
 import android.app.Application
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -58,24 +63,34 @@ fun CalendarApp() {
 
         !appVm.hasAccounts -> WelcomeScreen(onConnected = { appVm.refresh() })
 
-        else -> when (val s = screen) {
-            is Screen.Main -> MainScreen(
-                onOpenEvent = { screen = Screen.Detail(it) },
-                onCreateEvent = { screen = Screen.Edit(null) },
-                onOpenSettings = { screen = Screen.Settings }
-            )
-            is Screen.Detail -> EventDetailScreen(
-                eventId = s.eventId,
-                onBack = { screen = Screen.Main },
-                onEdit = { screen = Screen.Edit(s.eventId) }
-            )
-            is Screen.Edit -> EventEditScreen(
-                eventId = s.eventId,
-                onDone = { screen = Screen.Main }
-            )
-            is Screen.Settings -> SettingsScreen(
-                onBack = { screen = Screen.Main }
-            )
+        else -> {
+            AnimatedContent(
+                targetState = screen,
+                transitionSpec = {
+                    (fadeIn(tween(240)) togetherWith fadeOut(tween(140)))
+                },
+                label = "pantalla"
+            ) { s ->
+                when (s) {
+                    is Screen.Main -> MainScreen(
+                        onOpenEvent = { screen = Screen.Detail(it) },
+                        onCreateEvent = { screen = Screen.Edit(null) },
+                        onOpenSettings = { screen = Screen.Settings }
+                    )
+                    is Screen.Detail -> EventDetailScreen(
+                        eventId = s.eventId,
+                        onBack = { screen = Screen.Main },
+                        onEdit = { screen = Screen.Edit(s.eventId) }
+                    )
+                    is Screen.Edit -> EventEditScreen(
+                        eventId = s.eventId,
+                        onDone = { screen = Screen.Main }
+                    )
+                    is Screen.Settings -> SettingsScreen(
+                        onBack = { screen = Screen.Main }
+                    )
+                }
+            }
         }
     }
 }

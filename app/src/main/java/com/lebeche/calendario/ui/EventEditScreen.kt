@@ -48,6 +48,7 @@ import androidx.compose.ui.window.Dialog
 import com.lebeche.calendario.Repository
 import com.lebeche.calendario.data.CalInfo
 import com.lebeche.calendario.data.Event
+import com.lebeche.calendario.data.Prefs
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -58,15 +59,6 @@ import java.util.Locale
 
 private val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.getDefault())
 
-private fun reminderLabel(minutes: Int): String = when (minutes) {
-    -1 -> "Sin recordatorio"
-    0 -> "En el momento"
-    10 -> "10 minutos antes"
-    30 -> "30 minutos antes"
-    60 -> "1 hora antes"
-    1440 -> "1 día antes"
-    else -> "$minutes min antes"
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,11 +66,13 @@ fun EventEditScreen(eventId: Long?, onDone: () -> Unit) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val repo = remember { Repository.get(context.applicationContext) }
+    val defaultReminder = Prefs.defaultReminderMinutes(context.applicationContext)
 
     var loading by remember { mutableStateOf(true) }
     var title by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+    var tagsText by remember { mutableStateOf("") }
     var allDay by remember { mutableStateOf(false) }
     var calendars by remember { mutableStateOf<List<CalInfo>>(emptyList()) }
     var selectedCalendarId by remember { mutableStateOf(0L) }
@@ -110,6 +104,7 @@ fun EventEditScreen(eventId: Long?, onDone: () -> Unit) {
                 allDay = e.allDay
                 selectedCalendarId = e.calendarId
                 reminderMinutes = e.reminderMinutes
+                tagsText = e.categories.joinToString(", ")
                 remoteUid = e.remoteUid
                 remoteHref = e.remoteHref
                 etag = e.etag
@@ -148,6 +143,7 @@ fun EventEditScreen(eventId: Long?, onDone: () -> Unit) {
             dtstart = s,
             dtend = en,
             allDay = allDay,
+            categories = parseTags(tagsText),
             reminderMinutes = reminderMinutes
         )
         scope.launch {
@@ -233,7 +229,15 @@ fun EventEditScreen(eventId: Long?, onDone: () -> Unit) {
             CalendarSelector(calendars, selectedCalendarId) { selectedCalendarId = it }
             Spacer(Modifier.height(12.dp))
 
-            ReminderSelector(reminderMinutes) { reminderMinutes = it }
+            ReminderSelector(reminderMinutes, defaultReminder) { reminderMinutes = it }
+            Spacer(Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = tagsText, onValueChange = { tagsText = it },
+                label = { Text("Etiquetas") },
+                supportingText = { Text("Sepáralas con comas · se sincronizan con el servidor") },
+                modifier = Modifier.fillMaxWidth()
+            )
             Spacer(Modifier.height(12.dp))
 
             if (showStartDatePicker) {
@@ -356,21 +360,26 @@ private fun CalendarSelector(calendars: List<CalInfo>, selectedId: Long, onSelec
 }
 
 @Composable
-private fun ReminderSelector(selected: Int, onSelect: (Int) -> Unit) {
+private fun ReminderSelector(selected: Int, defaultMinutes: Int, onSelect: (Int) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    val options = listOf(-1, 0, 10, 30, 60, 1440)
+    val options = eventReminderChoices(defaultMinutes)
     Box {
         OutlinedTextField(
-            value = reminderLabel(selected), onValueChange = {}, readOnly = true,
+            value = reminderLabel(selected, defaultMinutes), onValueChange = {}, readOnly = true,
             label = { Text("Recordatorio") }, modifier = Modifier.fillMaxWidth(),
             trailingIcon = { Icon(Icons.Filled.ArrowDropDown, null) }
         )
         Box(Modifier.matchParentSize().clickable { expanded = true })
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { m ->
-                DropdownMenuItem(text = { Text(reminderLabel(m)) }, onClick = { onSelect(m); expanded = false })
+                DropdownMenuItem(
+                    text = { Text(reminderLabel(m, defaultMinutes)) },
+                    onClick = { onSelect(m); expanded = false }
+                )
             }
         }
     }
 }
 
+private fun parseTags(raw: String): List<String> =
+    raw.split(",").map { it.trim() }.filter { it.isNotEmpty() }.distinct()

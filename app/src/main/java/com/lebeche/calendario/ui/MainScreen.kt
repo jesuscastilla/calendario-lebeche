@@ -25,6 +25,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var isSyncing by mutableStateOf(false)
     var syncMessage by mutableStateOf<String?>(null)
 
+    private var wasInBackground = false
+    private var didFirstShowSync = false
+
     fun refresh() {
         viewModelScope.launch {
             calendars = repo.allCalendars()
@@ -53,6 +56,48 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun select(date: LocalDate) {
         selectedDate = date
+    }
+
+    /** Vuelve al día de hoy (mes y selección). */
+    fun goToToday() {
+        month = YearMonth.now()
+        selectedDate = LocalDate.now()
+        loadMonth()
+    }
+
+    /** La pantalla principal pasa a segundo plano: se marca para volver a hoy al regresar. */
+    fun onStop() {
+        wasInBackground = true
+    }
+
+    /** La app vuelve al primer plano: se muestra hoy y se sincroniza en silencio. */
+    fun onStart() {
+        if (wasInBackground) {
+            wasInBackground = false
+            goToToday()
+            syncSilently()
+        }
+    }
+
+    /** Primera vez que se muestra la pantalla principal en este proceso. */
+    fun onFirstShow() {
+        if (!didFirstShowSync) {
+            didFirstShowSync = true
+            syncSilently()
+        }
+    }
+
+    /** Sincroniza en segundo plano sin bloquear la UI ni mostrar errores. */
+    fun syncSilently() {
+        if (isSyncing) return
+        viewModelScope.launch {
+            try {
+                repo.syncAll()
+            } catch (e: Exception) {
+                // Se reintentará con el Worker periódico o al volver a primer plano.
+            }
+            refresh()
+        }
     }
 
     fun sync() {

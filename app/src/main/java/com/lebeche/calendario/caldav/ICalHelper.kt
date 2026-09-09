@@ -38,11 +38,12 @@ object ICalHelper {
             title = v.getSummary()?.getValue() ?: "(sin título)",
             description = v.getDescription()?.getValue() ?: "",
             location = v.getLocation()?.getValue() ?: "",
+            categories = extractCategories(data),
             dtstart = start,
             dtend = end,
             allDay = allDay,
             rrule = extractRrule(data),
-            reminderMinutes = -1
+            reminderMinutes = extractReminderMinutes(data)
         )
     }
 
@@ -57,10 +58,101 @@ object ICalHelper {
         v.setDateEnd(DateEnd(Date(e.dtend), !e.allDay))
         ical.addEvent(v)
         var out = Biweekly.write(ical).go()
+
+        // Se inyectan las propiedades que no se modelan con biweekly: RRULE,
+        // VALARM (recordatorio) y CATEGORIES (etiquetas), como en RFC 5545.
+        val extra = StringBuilder()
         if (!e.rrule.isNullOrBlank()) {
-            out = out.replaceFirst("END:VEVENT", "RRULE:${e.rrule}\r\nEND:VEVENT")
+            extra.append("RRULE:").append(e.rrule).append("\r\n")
+        }
+        if (e.reminderMinutes >= 0) {
+            extra.append("BEGIN:VALARM\r\n")
+                .append("ACTION:DISPLAY\r\n")
+                .append("TRIGGER:").append(triggerIso(e.reminderMinutes)).append("\r\n")
+                .append("END:VALARM\r\n")
+        }
+        if (e.categories.isNotEmpty()) {
+            extra.append("CATEGORIES:").append(e.categories.joinToString(",")).append("\r\n")
+        }
+        if (extra.isNotEmpty()) {
+            out = out.replaceFirst("END:VEVENT", extra.toString() + "END:VEVENT")
         }
         return out
+    }
+
+    /** Convierte los minutos previos al inicio en un TRIGGER ISO-8601 negativo. */
+    private fun triggerIso(minutes: Int): String = when {
+        minutes <= 0 -> "PT0S"
+        minutes % 1440 == 0 -> "-P${minutes / 1440}D"
+        else -> "-PT${minutes}M"
+    }
+
+    /** Extrae los minutos de antelación del primer VALARM con ACTION:DISPLAY. */
+    private fun extractReminderMinutes(data: String): Int {
+        val lines = data.replace("\r\n", "\n").split("\n")
+        var i = 0
+        while (i < lines.size) {
+            if (lines[i].trimStart().startsWith("BEGIN:VALARM", ignoreCase = true)) {
+                var j = i + 1
+                val block = mutableListOf<String>()
+                while (j < lines.size && !lines[j].trimStart().startsWith("END:VALARM", ignoreCase = true)) {
+                    block.add(lines[j])
+                    j++
+                }
+                val idx = block.indexOfFirst { it.trimStart().startsWith("TRIGGER", ignoreCase = true) }
+                if (idx >= 0) {
+                    val sb = StringBuilder(block[idx].substringAfter(':'))
+                    var k = idx + 1
+                    while (k < block.size && (block[k].startsWith(" ") || block[k].startsWith("\t"))) {
+                        sb.append(block[k].trim())
+                        k++
+                    }
+                    val m = parseTriggerMinutes(sb.toString())
+                    if (m >= 0) return m
+                }
+                i = j + 1
+            } else {
+                i++
+            }
+        }
+        return -1
+    }
+
+    /** Interpreta una duración ISO-8601: solo soportamos "antes del inicio". */
+    private fun parseTriggerMinutes(value: String): Int {
+        val s = value.trim()
+        if (!s.startsWith("P")) return -1
+        val negative = s.startsWith("-P")
+        val t = if (negative) s.substring(1) else s
+        val m = Regex("""P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?""").matchEntire(t) ?: return -1
+        fun g(i: Int): Long = m.groupValues[i].toLongOrNull() ?: 0L
+        val total = g(1) * 1440L + g(2) * 60L + g(3) + if (g(4) > 0L) 1L else 0L
+        if (total == 0L) return 0
+        if (!negative) return -1 // recordatorio posterior al inicio: no soportado
+        return total.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+    }
+
+    /** Extrae la propiedad CATEGORIES (varias líneas permitidas, separadas por comas). */
+    private fun extractCategories(data: String): List<String> {
+        val lines = data.replace("\r\n", "\n").split("\n")
+        val result = mutableListOf<String>()
+        var i = 0
+        while (i < lines.size) {
+            val line = lines[i]
+            if (line.startsWith("CATEGORIES", ignoreCase = true) && line.contains(':')) {
+                val sb = StringBuilder(line.substringAfter(':'))
+                var j = i + 1
+                while (j < lines.size && (lines[j].startsWith(" ") || lines[j].startsWith("\t"))) {
+                    sb.append(lines[j].trim())
+                    j++
+                }
+                sb.toString().split(",").map { it.trim() }.filter { it.isNotEmpty() }.forEach { result.add(it) }
+                i = j
+            } else {
+                i++
+            }
+        }
+        return result.distinct()
     }
 
     /**

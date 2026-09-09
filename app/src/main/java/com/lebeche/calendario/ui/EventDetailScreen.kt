@@ -13,6 +13,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -97,6 +101,10 @@ fun EventDetailScreen(eventId: Long, onBack: () -> Unit, onEdit: () -> Unit) {
             Column(Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
                 Text(e.title, style = MaterialTheme.typography.headlineSmall)
                 Spacer(Modifier.height(12.dp))
+                if (e.categories.isNotEmpty()) {
+                    CategoryChips(e.categories)
+                    Spacer(Modifier.height(12.dp))
+                }
                 DetailRow("Fecha", formatDates(e))
                 if (e.location.isNotBlank()) DetailRow("Lugar", e.location)
                 if (e.description.isNotBlank()) DetailRow("Descripción", e.description)
@@ -126,4 +134,21 @@ private fun DetailRow(label: String, value: String) {
         Text(value, style = MaterialTheme.typography.bodyLarge)
     }
     HorizontalDivider()
+}
+
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CategoryChips(categories: List<String>) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        categories.forEach { tag ->
+            Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.secondaryContainer) {
+                Text(
+                    tag,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+        }
+    }
 }

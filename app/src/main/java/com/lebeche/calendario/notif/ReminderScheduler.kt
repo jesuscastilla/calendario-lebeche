@@ -8,8 +8,16 @@ import android.os.Build
 import com.lebeche.calendario.caldav.ICalHelper
 import com.lebeche.calendario.data.Db
 import com.lebeche.calendario.data.Event
+import com.lebeche.calendario.data.Prefs
 
-/** Programa las alarmas de recordatorio de eventos (incluye recurrentes). */
+/**
+ * Programa las alarmas de recordatorio de eventos (incluye recurrentes).
+ *
+ * Reglas para calcular los minutos de antelación de un evento:
+ *  - reminderMinutes >= 0: valor fijo del evento (viaja en el VALARM del servidor).
+ *  - reminderMinutes == -2: sin recordatorio para este evento.
+ *  - reminderMinutes == -1: se usa el recordatorio por defecto global de Ajustes.
+ */
 object ReminderScheduler {
 
     const val EXTRA_EVENT_ID = "event_id"
@@ -20,13 +28,18 @@ object ReminderScheduler {
         val now = System.currentTimeMillis()
         for (event in db.getAllEvents()) {
             cancelForEvent(context, event.id)
-            if (!event.deleted && event.reminderMinutes >= 0) scheduleNext(context, event, now)
+            if (event.deleted) continue
+            val cal = db.getCalendar(event.calendarId)
+            if (cal == null || !cal.enabled) continue
+            scheduleNext(context, event, now)
         }
     }
 
     fun scheduleForEvent(context: Context, event: Event) {
         cancelForEvent(context, event.id)
-        if (event.deleted || event.reminderMinutes < 0) return
+        if (event.deleted) return
+        val cal = Db.get(context).getCalendar(event.calendarId)
+        if (cal == null || !cal.enabled) return
         scheduleNext(context, event, System.currentTimeMillis())
     }
 
@@ -35,11 +48,21 @@ object ReminderScheduler {
         am.cancel(pendingIntent(context, eventId))
     }
 
+    /** Minutos de antelacion efectivos para un evento (puede ser -1 = sin aviso). */
+    fun effectiveMinutes(context: Context, event: Event): Int = when {
+        event.reminderMinutes >= 0 -> event.reminderMinutes
+        event.reminderMinutes == -2 -> -1
+        else -> Prefs.defaultReminderMinutes(context)
+    }
+
     private fun scheduleNext(context: Context, event: Event, now: Long) {
+        val minutes = effectiveMinutes(context, event)
+        if (minutes < 0) return
+
         val horizon = now + HORIZON_DAYS * 24L * 60L * 60L * 1000L
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         for ((start, _) in ICalHelper.expand(event, now, horizon)) {
-            val fireAt = start - event.reminderMinutes * 60L * 1000L
+            val fireAt = start - minutes * 60L * 1000L
             if (fireAt <= now) continue
             val pi = pendingIntent(context, event.id)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !am.canScheduleExactAlarms()) {

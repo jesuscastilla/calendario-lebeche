@@ -12,6 +12,8 @@ import com.lebeche.calendario.data.Occurrence
 import com.lebeche.calendario.notif.ReminderScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 data class SyncSummary(val errors: MutableList<String> = mutableListOf())
 
@@ -33,6 +35,7 @@ class Repository private constructor(private val context: Context) {
 
     private val db = Db.get(context)
     private val caldav = CalDavClient()
+    private val syncLock = Mutex()
 
     companion object {
         @Volatile
@@ -151,6 +154,13 @@ class Repository private constructor(private val context: Context) {
                     db.insertCalendar(c.copy(accountId = id))
                     discovered++
                 }
+                if (discovered > 0) {
+                    try {
+                        syncAccount(account, mutableListOf())
+                    } catch (e: Exception) {
+                        // La primera sincronizacion se reintentara en segundo plano.
+                    }
+                }
                 error = result.error
             } catch (ex: Exception) {
                 error = ex.message ?: ex.javaClass.simpleName
@@ -171,35 +181,40 @@ class Repository private constructor(private val context: Context) {
 
     suspend fun setCalendarEnabled(id: Long, enabled: Boolean) = withContext(Dispatchers.IO) {
         db.setCalendarEnabled(id, enabled)
+        ReminderScheduler.rescheduleAll(context)
     }
 
     // ------------------------------------------------------------------ sincronización
 
-    suspend fun syncAll(): SyncSummary = withContext(Dispatchers.IO) {
-        val summary = SyncSummary()
-        for (account in db.getAccounts()) {
-            try {
-                syncAccount(account, summary.errors)
-            } catch (e: Exception) {
-                summary.errors.add("${account.name}: ${e.message ?: "error"}")
+    suspend fun syncAll(): SyncSummary = syncLock.withLock {
+        withContext(Dispatchers.IO) {
+            val summary = SyncSummary()
+            for (account in db.getAccounts()) {
+                try {
+                    syncAccount(account, summary.errors)
+                } catch (e: Exception) {
+                    summary.errors.add("${account.name}: ${e.message ?: "error"}")
+                }
             }
+            ReminderScheduler.rescheduleAll(context)
+            summary
         }
-        ReminderScheduler.rescheduleAll(context)
-        summary
     }
 
-    suspend fun syncAccountNow(id: Long): SyncSummary = withContext(Dispatchers.IO) {
-        val summary = SyncSummary()
-        val account = db.getAccount(id)
-        if (account != null) {
-            try {
-                syncAccount(account, summary.errors)
-            } catch (e: Exception) {
-                summary.errors.add("${account.name}: ${e.message ?: "error"}")
+    suspend fun syncAccountNow(id: Long): SyncSummary = syncLock.withLock {
+        withContext(Dispatchers.IO) {
+            val summary = SyncSummary()
+            val account = db.getAccount(id)
+            if (account != null) {
+                try {
+                    syncAccount(account, summary.errors)
+                } catch (e: Exception) {
+                    summary.errors.add("${account.name}: ${e.message ?: "error"}")
+                }
             }
+            ReminderScheduler.rescheduleAll(context)
+            summary
         }
-        ReminderScheduler.rescheduleAll(context)
-        summary
     }
 
     private fun syncAccount(account: Account, errors: MutableList<String>) {
@@ -269,9 +284,14 @@ class Repository private constructor(private val context: Context) {
                 // No pisamos un evento local pendiente de subir (dirty): se
                 // sincronizará en el siguiente push.
                 if (existing.dirty) continue
+                val reminder = when {
+                    parsed.reminderMinutes >= 0 -> parsed.reminderMinutes
+                    existing.reminderMinutes == -2 -> -2
+                    else -> -1
+                }
                 val updated = parsed.copy(
                     id = existing.id,
-                    reminderMinutes = existing.reminderMinutes,
+                    reminderMinutes = reminder,
                     systemEventId = existing.systemEventId
                 )
                 db.updateEvent(updated)

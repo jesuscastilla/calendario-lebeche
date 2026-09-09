@@ -10,7 +10,7 @@ import android.database.sqlite.SQLiteOpenHelper
  * Base de datos local (SQLite) de la aplicación.
  * Almacena cuentas, calendarios remotos y eventos; la contraseña va cifrada.
  */
-class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calendario.db", null, 2) {
+class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calendario.db", null, 3) {
 
     companion object {
         @Volatile
@@ -68,6 +68,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calen
                 title TEXT NOT NULL,
                 description TEXT NOT NULL DEFAULT '',
                 location TEXT NOT NULL DEFAULT '',
+                categories TEXT NOT NULL DEFAULT '',
                 dtstart INTEGER NOT NULL,
                 dtend INTEGER NOT NULL,
                 all_day INTEGER NOT NULL DEFAULT 0,
@@ -82,6 +83,9 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calen
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 3) {
+            db.execSQL("ALTER TABLE events ADD COLUMN categories TEXT NOT NULL DEFAULT ''")
+        }
         if (oldVersion < 2) {
             db.execSQL("ALTER TABLE calendars ADD COLUMN read_only INTEGER NOT NULL DEFAULT 0")
         }
@@ -280,6 +284,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calen
         put("title", e.title)
         put("description", e.description)
         put("location", e.location)
+        put("categories", e.categories.joinToString(","))
         put("dtstart", e.dtstart)
         put("dtend", e.dtend)
         put("all_day", if (e.allDay) 1 else 0)
@@ -299,6 +304,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calen
         title = c.getString(c.getColumnIndexOrThrow("title")),
         description = c.getString(c.getColumnIndexOrThrow("description")),
         location = c.getString(c.getColumnIndexOrThrow("location")),
+        categories = parseCategories(c.getString(c.getColumnIndexOrThrow("categories"))),
         dtstart = c.getLong(c.getColumnIndexOrThrow("dtstart")),
         dtend = c.getLong(c.getColumnIndexOrThrow("dtend")),
         allDay = c.getInt(c.getColumnIndexOrThrow("all_day")) == 1,
@@ -311,3 +317,6 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calen
         }
     )
 }
+
+private fun parseCategories(raw: String?): List<String> =
+    raw.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }.distinct()

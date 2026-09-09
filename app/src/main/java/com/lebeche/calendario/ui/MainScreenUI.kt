@@ -1,6 +1,14 @@
 package com.lebeche.calendario.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,15 +41,20 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lebeche.calendario.data.Occurrence
 import java.time.Instant
@@ -74,15 +87,32 @@ fun MainScreen(
     val vm: MainViewModel = viewModel()
     val colorMap = vm.calendars.associate { it.id to it.color }
 
-    // Refresca cada vez que se vuelve a esta pantalla (p. ej. tras crear/editar
-    // o borrar un evento) para que la agenda refleje el estado más reciente.
-    LaunchedEffect(Unit) { vm.refresh() }
+    // Carga datos y, la primera vez que se abre la app en este proceso, sincroniza.
+    LaunchedEffect(Unit) {
+        vm.refresh()
+        vm.onFirstShow()
+    }
+
+    // Al volver del segundo plano se muestra siempre el día de hoy.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> vm.onStop()
+                Lifecycle.Event.ON_START -> vm.onStart()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Calendario Lebeche") },
                 actions = {
+                    TextButton(onClick = { vm.goToToday() }) { Text("Hoy") }
                     if (vm.isSyncing) {
                         CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     }
@@ -143,6 +173,32 @@ private fun MonthGrid(
         }
     }
 
+    // Animación suave al cambiar de mes.
+    AnimatedContent(
+        targetState = month,
+        transitionSpec = {
+            if (targetState > initialState) {
+                (slideInHorizontally(tween(280)) { it / 3 } + fadeIn(tween(220))) togetherWith
+                    (slideOutHorizontally(tween(280)) { -it / 3 } + fadeOut(tween(140)))
+            } else {
+                (slideInHorizontally(tween(280)) { -it / 3 } + fadeIn(tween(220))) togetherWith
+                    (slideOutHorizontally(tween(280)) { it / 3 } + fadeOut(tween(140)))
+            }
+        },
+        label = "mes"
+    ) { m ->
+        MonthGridBody(m, selected, byDay, colorMap, onSelect)
+    }
+}
+
+@Composable
+private fun MonthGridBody(
+    month: YearMonth,
+    selected: LocalDate,
+    byDay: Map<LocalDate, List<Occurrence>>,
+    colorMap: Map<Long, Int>,
+    onSelect: (LocalDate) -> Unit
+) {
     val offset = month.atDay(1).dayOfWeek.value - 1
     val cells = mutableListOf<LocalDate?>()
     repeat(offset) { cells.add(null) }
@@ -181,9 +237,20 @@ private fun DayCell(
         if (date != null) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 val isSel = date == selected
-                val bg = if (isSel) MaterialTheme.colorScheme.primary else Color.Transparent
+                val isToday = date == LocalDate.now()
+                val bg = when {
+                    isSel -> MaterialTheme.colorScheme.primary
+                    isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                    else -> Color.Transparent
+                }
+                val borderColor = if (isToday && !isSel) MaterialTheme.colorScheme.primary else Color.Transparent
                 val fg = if (isSel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                Box(Modifier.size(30.dp).clip(CircleShape).background(bg), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier.size(30.dp).clip(CircleShape)
+                        .background(bg)
+                        .border(1.5.dp, borderColor, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(date.dayOfMonth.toString(), color = fg, style = MaterialTheme.typography.bodyMedium)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -211,7 +278,8 @@ private fun DayAgenda(
     Column(modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         Text(
             DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", Locale("es", "ES")).format(selected),
-            style = MaterialTheme.typography.titleSmall
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary
         )
         Spacer(Modifier.height(4.dp))
         if (dayOcc.isEmpty()) {
@@ -232,7 +300,8 @@ private fun DayAgenda(
 @Composable
 private fun EventRow(o: Occurrence, colorMap: Map<Long, Int>, onOpenEvent: (Long) -> Unit) {
     Card(
-        Modifier.fillMaxWidth().padding(vertical = 3.dp).clickable { onOpenEvent(o.event.id) }
+        Modifier.fillMaxWidth().padding(vertical = 3.dp).clickable { onOpenEvent(o.event.id) },
+        shape = MaterialTheme.shapes.medium
     ) {
         Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -250,4 +319,3 @@ private fun EventRow(o: Occurrence, colorMap: Map<Long, Int>, onOpenEvent: (Long
         }
     }
 }
-

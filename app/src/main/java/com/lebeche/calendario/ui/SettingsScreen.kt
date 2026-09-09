@@ -2,6 +2,7 @@ package com.lebeche.calendario.ui
 
 import android.app.Application
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,10 +19,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,16 +56,20 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lebeche.calendario.Repository
 import com.lebeche.calendario.data.Account
 import com.lebeche.calendario.data.CalInfo
+import com.lebeche.calendario.data.Prefs
+import com.lebeche.calendario.notif.ReminderScheduler
 import kotlinx.coroutines.launch
 
 class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = Repository.get(app)
+    private val appContext = getApplication<Application>()
 
     var accounts by mutableStateOf<List<Account>>(emptyList())
     var calendars by mutableStateOf<Map<Long, List<CalInfo>>>(emptyMap())
     var message by mutableStateOf<String?>(null)
     var isSyncing by mutableStateOf(false)
+    var defaultReminder by mutableStateOf(Prefs.defaultReminderMinutes(appContext))
 
     init {
         refresh()
@@ -111,6 +119,12 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
             refresh()
         }
     }
+
+    fun updateDefaultReminder(minutes: Int) {
+        Prefs.setDefaultReminderMinutes(appContext, minutes)
+        defaultReminder = minutes
+        ReminderScheduler.rescheduleAll(appContext)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -139,6 +153,53 @@ fun SettingsScreen(onBack: () -> Unit) {
             item {
                 vm.message?.let { Text(it, color = MaterialTheme.colorScheme.secondary) }
                 Spacer(Modifier.height(8.dp))
+            }
+
+            item {
+                Spacer(Modifier.height(4.dp))
+                Text("Recordatorios", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text(
+                            "Avisar de los eventos que no tienen recordatorio propio",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        var expanded by remember { mutableStateOf(false) }
+                        Box {
+                            OutlinedTextField(
+                                value = reminderLabel(vm.defaultReminder),
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Recordatorio por defecto") },
+                                modifier = Modifier.fillMaxWidth(),
+                                trailingIcon = { Icon(Icons.Filled.ArrowDropDown, null) }
+                            )
+                            Box(Modifier.matchParentSize().clickable { expanded = true })
+                            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                defaultReminderChoices().forEach { m ->
+                                    DropdownMenuItem(
+                                        text = { Text(reminderLabel(m)) },
+                                        onClick = {
+                                            vm.updateDefaultReminder(m)
+                                            expanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "Se aplica también a los eventos creados por otros usuarios",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+
+            item {
+                Spacer(Modifier.height(16.dp))
                 Text("Cuentas CalDAV", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))
             }
