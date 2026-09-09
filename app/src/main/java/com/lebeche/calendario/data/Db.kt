@@ -10,7 +10,7 @@ import android.database.sqlite.SQLiteOpenHelper
  * Base de datos local (SQLite) de la aplicación.
  * Almacena cuentas, calendarios remotos y eventos; la contraseña va cifrada.
  */
-class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calendario.db", null, 3) {
+class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calendario.db", null, 4) {
 
     companion object {
         @Volatile
@@ -110,6 +110,12 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calen
             while (c.moveToNext()) list.add(readAccount(c))
         }
         return list
+    }
+
+    fun clearAllData() {
+        writableDatabase.execSQL("DELETE FROM events")
+        writableDatabase.execSQL("DELETE FROM calendars")
+        writableDatabase.execSQL("DELETE FROM accounts")
     }
 
     fun getAccount(id: Long): Account? {
