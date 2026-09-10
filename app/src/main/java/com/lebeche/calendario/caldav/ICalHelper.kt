@@ -121,7 +121,7 @@ object ICalHelper {
     /** Interpreta una duración ISO-8601: solo soportamos "antes del inicio". */
     private fun parseTriggerMinutes(value: String): Int {
         val s = value.trim()
-        if (!s.startsWith("P")) return -1
+        if (!s.startsWith("P") && !s.startsWith("-P")) return -1
         val negative = s.startsWith("-P")
         val t = if (negative) s.substring(1) else s
         val m = Regex("""P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?""").matchEntire(t) ?: return -1
