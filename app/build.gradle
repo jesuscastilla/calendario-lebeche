@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
@@ -8,10 +10,10 @@ plugins {
 def keystorePropertiesFile = rootProject.file('keystore.properties')
 def keystoreProperties = new Properties()
 if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
 }
 
-    android {
+android {
     namespace 'com.lebeche.calendario'
     compileSdk 36
 
@@ -19,8 +21,8 @@ if (keystorePropertiesFile.exists()) {
         applicationId 'com.lebeche.calendario'
         minSdk 28
         targetSdk 36
-        versionCode 9
-        versionName '2.1.1'
+        versionCode 10
+        versionName '2.1.2'
     }
 
     signingConfigs {
@@ -65,7 +67,7 @@ if (keystorePropertiesFile.exists()) {
 
 kotlin {
     compilerOptions {
-        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+        jvmTarget = JvmTarget.JVM_11
     }
 }
 

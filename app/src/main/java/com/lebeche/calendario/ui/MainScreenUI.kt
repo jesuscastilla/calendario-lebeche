@@ -85,7 +85,7 @@ fun MainScreen(
     onOpenSettings: () -> Unit
 ) {
     val vm: MainViewModel = viewModel()
-    val colorMap = vm.calendars.associate { it.id to it.color }
+    val colorMap = vm.calendars.associateBy({ it.id }, { it.color })
 
     // Carga datos y, la primera vez que se abre la app en este proceso, sincroniza.
     LaunchedEffect(Unit) {
@@ -276,10 +276,10 @@ private fun DayAgenda(
     colorMap: Map<Long, Int>,
     onOpenEvent: (Long) -> Unit
 ) {
-    val dayOcc = occurrences.filter { occurrenceDate(it) == selected }.sortedBy { it.startMillis }
+    val dayOcc = occurrences.asSequence().filter { occurrenceDate(it) == selected }.sortedBy { it.startMillis }.toList()
     Column(modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         Text(
-            DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", Locale("es", "ES")).format(selected),
+            DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", Locale.forLanguageTag("es-ES")).format(selected),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary
         )

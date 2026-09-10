@@ -48,7 +48,7 @@ class DetailViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = Repository.get(app)
     var event by mutableStateOf<Event?>(null)
     var calendarName by mutableStateOf("")
-    var loading by mutableStateOf(true)
+    var loading by mutableStateOf(value = true)
 
     fun load(id: Long) {
         viewModelScope.launch {
@@ -119,10 +119,10 @@ private fun formatDates(e: Event): String {
     val zone = if (e.allDay) ZoneOffset.UTC else ZoneId.systemDefault()
     val start = Instant.ofEpochMilli(e.dtstart).atZone(zone)
     if (e.allDay) {
-        return DateTimeFormatter.ofPattern("EEEE d 'de' MMMM yyyy", Locale("es", "ES")).format(start)
+        return DateTimeFormatter.ofPattern("EEEE d 'de' MMMM yyyy", Locale.forLanguageTag("es-ES")).format(start)
     }
-    val fmt = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM yyyy · HH:mm", Locale("es", "ES"))
-    val endFmt = DateTimeFormatter.ofPattern("HH:mm", Locale("es", "ES"))
+    val fmt = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM yyyy · HH:mm", Locale.forLanguageTag("es-ES"))
+    val endFmt = DateTimeFormatter.ofPattern("HH:mm", Locale.forLanguageTag("es-ES"))
     val end = Instant.ofEpochMilli(e.dtend).atZone(zone)
     return fmt.format(start) + " - " + endFmt.format(end)
 }

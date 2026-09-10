@@ -38,6 +38,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -69,7 +70,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     var calendars by mutableStateOf<Map<Long, List<CalInfo>>>(emptyMap())
     var message by mutableStateOf<String?>(null)
     var isSyncing by mutableStateOf(false)
-    var defaultReminder by mutableStateOf(Prefs.defaultReminderMinutes(appContext))
+    var defaultReminder by mutableIntStateOf(Prefs.defaultReminderMinutes(appContext))
 
     init {
         refresh()
@@ -216,7 +217,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     calendars = vm.calendars[account.id].orEmpty(),
                     onSync = { vm.syncAccount(account.id) },
                     onDelete = { vm.deleteAccount(account.id) },
-                    onToggle = { id, enabled -> vm.toggleCalendar(id, enabled) }
+                    onToggle = vm::toggleCalendar,
                 )
             }
 

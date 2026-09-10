@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <color name="ic_launcher_background">#FFFFFF</color>
-    <color name="lebeche_blue">#8FD6EF</color>
-    <color name="lebeche_amber">#E8A33D</color>
+    <color name="lebeche_blue" tools:ignore="UnusedResources">#8FD6EF</color>
+    <color name="lebeche_amber" tools:ignore="UnusedResources">#E8A33D</color>
 </resources>

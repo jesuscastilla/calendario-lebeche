@@ -272,7 +272,7 @@ class CalDavClient {
         return PutResult(href, res.etag)
     }
 
-    fun deleteEvent(account: Account, calendar: CalInfo, href: String, etag: String?) {
+    fun deleteEvent(account: Account, href: String, etag: String?) {
         val headers = if (etag != null) mapOf("If-Match" to quoteEtag(etag)) else emptyMap()
         val res = execute(account, "DELETE", href, null, headers)
         if (res == null || res.code !in 200..299) throw CalDavException("Error al borrar el evento (HTTP ${res?.code})")
@@ -335,7 +335,7 @@ class CalDavClient {
             .followSslRedirects(false)
             .addInterceptor(LoggingInterceptor)
         if (insecure) {
-            val trustAll = object : X509TrustManager {
+            val trustAll = @Suppress("TrustAllX509TrustManager", "CustomX509TrustManager") object : X509TrustManager {
                 override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
                 override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
                 override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()

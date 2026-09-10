@@ -31,8 +31,8 @@ sealed class Screen {
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = Repository.get(app)
-    var initialized by mutableStateOf(false)
-    var hasAccounts by mutableStateOf(false)
+    var initialized by mutableStateOf(value = false)
+    var hasAccounts by mutableStateOf(value = false)
 
     init {
         viewModelScope.launch {
@@ -69,7 +69,7 @@ fun CalendarApp() {
                 transitionSpec = {
                     (fadeIn(tween(240)) togetherWith fadeOut(tween(140)))
                 },
-                label = "pantalla"
+                label = "pantalla",
             ) { s ->
                 when (s) {
                     is Screen.Main -> MainScreen(

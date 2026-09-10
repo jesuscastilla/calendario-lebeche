@@ -46,7 +46,7 @@ class NotificationPublisher : BroadcastReceiver() {
             context, eventId.toInt(),
             Intent(context, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
         val notif = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -59,7 +59,12 @@ class NotificationPublisher : BroadcastReceiver() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_EVENT)
             .build()
-        NotificationManagerCompat.from(context).notify(eventId.toInt(), notif)
+        if (canNotify(context)) {
+            try {
+                NotificationManagerCompat.from(context).notify(eventId.toInt(), notif)
+            } catch (_: SecurityException) {
+            }
+        }
 
         ReminderScheduler.scheduleForEvent(context, event)
     }
@@ -68,9 +73,9 @@ class NotificationPublisher : BroadcastReceiver() {
         val zone = if (e.allDay) ZoneOffset.UTC else ZoneId.systemDefault()
         val start = Instant.ofEpochMilli(e.dtstart).atZone(zone)
         return if (e.allDay) {
-            "Todo el dia · " + DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", Locale("es", "ES")).format(start)
+            "Todo el dia · " + DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", Locale.forLanguageTag("es-ES")).format(start)
         } else {
-            DateTimeFormatter.ofPattern("EEEE d 'de' MMMM · HH:mm", Locale("es", "ES")).format(start)
+            DateTimeFormatter.ofPattern("EEEE d 'de' MMMM · HH:mm", Locale.forLanguageTag("es-ES")).format(start)
         }
     }
 
@@ -78,20 +83,18 @@ class NotificationPublisher : BroadcastReceiver() {
         const val CHANNEL_ID = "eventos"
 
         fun ensureChannel(context: Context) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(
-                    CHANNEL_ID,
-                    "Recordatorios de eventos",
-                    NotificationManager.IMPORTANCE_HIGH
-                )
-                context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
-            }
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Recordatorios de eventos",
+                NotificationManager.IMPORTANCE_HIGH,
+            )
+            context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
 
         fun canNotify(context: Context): Boolean {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-                PackageManager.PERMISSION_GRANTED
+            if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) &&
+                (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED)
             ) return false
             return NotificationManagerCompat.from(context).areNotificationsEnabled()
         }

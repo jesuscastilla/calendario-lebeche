@@ -1,6 +1,7 @@
 package com.lebeche.calendario.data
 
 import android.content.Context
+import androidx.core.content.edit
 
 /** Preferencias locales de la app (recordatorio por defecto, etc.). */
 object Prefs {
@@ -16,6 +17,6 @@ object Prefs {
 
     fun setDefaultReminderMinutes(context: Context, minutes: Int) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-            .edit().putInt(KEY_DEFAULT_REMINDER, minutes).apply()
+            .edit { putInt(KEY_DEFAULT_REMINDER, minutes) }
     }
 }

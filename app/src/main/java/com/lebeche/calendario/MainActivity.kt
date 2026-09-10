@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.appupdate.AppUpdateOptions
 import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.UpdateAvailability
 import com.lebeche.calendario.data.Db
@@ -37,7 +38,12 @@ class MainActivity : ComponentActivity() {
         val updateManager = AppUpdateManagerFactory.create(this)
         updateManager.appUpdateInfo.addOnSuccessListener { info ->
             if (info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS) {
-                updateManager.startUpdateFlowForResult(info, AppUpdateType.IMMEDIATE, this, 1001)
+                updateManager.startUpdateFlowForResult(
+                    info,
+                    this,
+                    AppUpdateOptions.defaultOptions(AppUpdateType.IMMEDIATE),
+                    1001,
+                )
             }
         }
     }
@@ -46,7 +52,7 @@ class MainActivity : ComponentActivity() {
         val updateManager = AppUpdateManagerFactory.create(this)
         updateManager.appUpdateInfo.addOnSuccessListener { info ->
             // Si hay una actualización disponible y Google Play permite forzarla (modo IMMEDIATE)
-            if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE
+            if ((info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE)
                 && info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)
             ) {
                 // Borrar todos los datos de la base de datos (forzar cierre de sesión)
@@ -55,9 +61,9 @@ class MainActivity : ComponentActivity() {
                 // Lanzar la pantalla bloqueante de actualización de Google Play
                 updateManager.startUpdateFlowForResult(
                     info,
-                    AppUpdateType.IMMEDIATE,
                     this,
-                    1001
+                    AppUpdateOptions.defaultOptions(AppUpdateType.IMMEDIATE),
+                    1001,
                 )
             }
         }
@@ -65,7 +71,7 @@ class MainActivity : ComponentActivity() {
 
     private fun requestInitialPermissions() {
         val perms = mutableListOf<String>()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) &&
             (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
         ) {
             perms.add(Manifest.permission.POST_NOTIFICATIONS)

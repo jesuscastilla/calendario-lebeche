@@ -157,7 +157,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calen
             put("sync_token", cal.syncToken)
             put("enabled", if (cal.enabled) 1 else 0)
             put("read_only", if (cal.readOnly) 1 else 0)
-            if (cal.systemCalendarId != null) put("system_calendar_id", cal.systemCalendarId)
+            cal.systemCalendarId?.let { put("system_calendar_id", it) }
         }
         return writableDatabase.insertOrThrow("calendars", null, cv)
     }
@@ -325,4 +325,4 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calen
 }
 
 private fun parseCategories(raw: String?): List<String> =
-    raw.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+    raw.orEmpty().split(",").asSequence().map { it.trim() }.filter { it.isNotEmpty() }.distinct().toList()

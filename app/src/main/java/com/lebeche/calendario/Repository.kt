@@ -27,7 +27,7 @@ data class AddAccountResult(
 /** Resultado de guardar un evento (devuelve el error si no pudo subirse). */
 data class SaveEventResult(
     val eventId: Long,
-    val error: String? = null
+    val error: String? = null,
 )
 
 /** Punto de acceso a datos + lógica de sincronización para la interfaz. */
@@ -37,6 +37,7 @@ class Repository private constructor(private val context: Context) {
     private val caldav = CalDavClient()
     private val syncLock = Mutex()
 
+    @Suppress("StaticFieldLeak")
     companion object {
         @Volatile
         private var instance: Repository? = null
@@ -66,10 +67,10 @@ class Repository private constructor(private val context: Context) {
 
     /** Ocurrencias (incluye expansión de recurrentes) dentro de un rango temporal. */
     suspend fun occurrences(from: Long, to: Long): List<Occurrence> = withContext(Dispatchers.IO) {
-        val enabled = db.getAllCalendars().filter { it.enabled }.map { it.id }.toSet()
+        val enabled = db.getAllCalendars().asSequence().filter { it.enabled }.map { it.id }.toSet()
         val result = mutableListOf<Occurrence>()
         for (e in db.getAllEvents()) {
-            if (e.deleted || e.calendarId !in enabled) continue
+            if (e.deleted || (e.calendarId !in enabled)) continue
             for ((s, en) in ICalHelper.expand(e, from, to)) {
                 result.add(Occurrence(e, s, en, e.allDay))
             }
@@ -127,12 +128,12 @@ class Repository private constructor(private val context: Context) {
             try {
                 val account = db.getAccount(cal.accountId)
                 if (account != null) {
-                    caldav.deleteEvent(account, cal, e.remoteHref, e.etag)
+                    caldav.deleteEvent(account, e.remoteHref, e.etag)
                     db.deleteEvent(id)
                 } else {
                     db.updateEvent(e.copy(deleted = true))
                 }
-            } catch (ex: Exception) {
+            } catch (_: Exception) {
                 db.updateEvent(e.copy(deleted = true))
             }
         } else {
@@ -147,7 +148,7 @@ class Repository private constructor(private val context: Context) {
             val id = db.insertAccount(name, baseUrl, username, password, insecureTls)
             val account = Account(id, name, baseUrl, username, password, insecureTls)
             var discovered = 0
-            var error: String? = null
+            var error: String?
             try {
                 val result = caldav.discover(account)
                 for (c in result.calendars) {
@@ -157,7 +158,7 @@ class Repository private constructor(private val context: Context) {
                 if (discovered > 0) {
                     try {
                         syncAccount(account, mutableListOf())
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         // La primera sincronizacion se reintentara en segundo plano.
                     }
                 }
@@ -235,10 +236,10 @@ class Repository private constructor(private val context: Context) {
             if (e.deleted) {
                 if (e.remoteHref != null) {
                     try {
-                        caldav.deleteEvent(account, cal, e.remoteHref, e.etag)
+                        caldav.deleteEvent(account, e.remoteHref, e.etag)
                         db.deleteEvent(e.id)
                         SystemCalendarSync.deleteEvent(context, e)
-                    } catch (ex: Exception) {
+                    } catch (_: Exception) {
                         // reintentar más tarde
                     }
                 } else {

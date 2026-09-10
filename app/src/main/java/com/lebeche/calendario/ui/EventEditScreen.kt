@@ -36,6 +36,8 @@ import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -57,6 +59,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+@Suppress("ConstantLocale")
 private val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.getDefault())
 
 
@@ -75,14 +78,14 @@ fun EventEditScreen(eventId: Long?, onDone: () -> Unit) {
     var tagsText by remember { mutableStateOf("") }
     var allDay by remember { mutableStateOf(false) }
     var calendars by remember { mutableStateOf<List<CalInfo>>(emptyList()) }
-    var selectedCalendarId by remember { mutableStateOf(0L) }
+    var selectedCalendarId by remember { mutableLongStateOf(0L) }
     var startDate by remember { mutableStateOf(LocalDate.now()) }
     var endDate by remember { mutableStateOf(LocalDate.now()) }
-    var startHour by remember { mutableStateOf(9) }
-    var startMinute by remember { mutableStateOf(0) }
-    var endHour by remember { mutableStateOf(10) }
-    var endMinute by remember { mutableStateOf(0) }
-    var reminderMinutes by remember { mutableStateOf(-1) }
+    var startHour by remember { mutableIntStateOf(9) }
+    var startMinute by remember { mutableIntStateOf(0) }
+    var endHour by remember { mutableIntStateOf(10) }
+    var endMinute by remember { mutableIntStateOf(0) }
+    var reminderMinutes by remember { mutableIntStateOf(-1) }
     var remoteUid by remember { mutableStateOf<String?>(null) }
     var remoteHref by remember { mutableStateOf<String?>(null) }
     var etag by remember { mutableStateOf<String?>(null) }
@@ -144,7 +147,7 @@ fun EventEditScreen(eventId: Long?, onDone: () -> Unit) {
             dtend = en,
             allDay = allDay,
             categories = parseTags(tagsText),
-            reminderMinutes = reminderMinutes
+            reminderMinutes = reminderMinutes,
         )
         scope.launch {
             val result = repo.saveEvent(e)

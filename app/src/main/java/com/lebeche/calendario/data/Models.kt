@@ -8,7 +8,7 @@ data class Account(
     val username: String,
     val password: String,
     val insecureTls: Boolean = false,
-    val lastSyncAt: Long? = null
+    val lastSyncAt: Long? = null,
 )
 
 /** Calendario remoto descubierto en una cuenta CalDAV. */
