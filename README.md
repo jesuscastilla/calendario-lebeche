@@ -125,3 +125,10 @@ la única forma de actualizar la app en Google Play.
 - La detección de errores de autenticación CalDAV se muestra de forma genérica (se guarda la
   cuenta aunque el descubrimiento falle; se puede reintentar con "Sincronizar").
 - Las notificaciones de eventos recurrentes cubren los próximos 90 días.
+
+---
+
+## Repositorio
+
+- **Local**: `G:\GITHUB\calendario-lebeche\`
+- **GitHub**: https://github.com/jesuscastilla/calendario-lebeche
