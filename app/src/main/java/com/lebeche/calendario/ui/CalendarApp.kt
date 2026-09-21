@@ -1,6 +1,7 @@
 package com.lebeche.calendario.ui
 
 import android.app.Application
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -22,10 +23,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lebeche.calendario.Repository
 import kotlinx.coroutines.launch
 
+import java.time.LocalDate
+
 sealed class Screen {
     object Main : Screen()
     data class Detail(val eventId: Long) : Screen()
-    data class Edit(val eventId: Long?) : Screen()
+    data class Edit(val eventId: Long?, val defaultDate: LocalDate? = null) : Screen()
     object Settings : Screen()
 }
 
@@ -64,6 +67,9 @@ fun CalendarApp() {
         !appVm.hasAccounts -> WelcomeScreen(onConnected = { appVm.refresh() })
 
         else -> {
+            BackHandler(enabled = screen != Screen.Main) {
+                screen = Screen.Main
+            }
             AnimatedContent(
                 targetState = screen,
                 transitionSpec = {
@@ -74,7 +80,7 @@ fun CalendarApp() {
                 when (s) {
                     is Screen.Main -> MainScreen(
                         onOpenEvent = { screen = Screen.Detail(it) },
-                        onCreateEvent = { screen = Screen.Edit(null) },
+                        onCreateEvent = { date -> screen = Screen.Edit(null, date) },
                         onOpenSettings = { screen = Screen.Settings }
                     )
                     is Screen.Detail -> EventDetailScreen(

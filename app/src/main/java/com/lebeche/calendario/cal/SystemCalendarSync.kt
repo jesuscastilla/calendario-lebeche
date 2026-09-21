@@ -56,6 +56,21 @@ object SystemCalendarSync {
         return context.contentResolver.insert(uri, cv)?.lastPathSegment?.toLongOrNull()
     }
 
+    fun updateCalendar(context: Context, cal: CalInfo) {
+        if (!hasPermission(context)) return
+        cal.systemCalendarId?.let { id ->
+            val cv = ContentValues().apply {
+                put(CalendarContract.Calendars.NAME, cal.displayName)
+                put(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, cal.displayName)
+                put(CalendarContract.Calendars.CALENDAR_COLOR, cal.color)
+            }
+            context.contentResolver.update(
+                ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, id),
+                cv, null, null
+            )
+        }
+    }
+
     fun upsertEvent(context: Context, event: Event, cal: CalInfo): Long? {
         if (!hasPermission(context)) return null
         val calId = ensureCalendar(context, cal) ?: return null

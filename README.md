@@ -74,12 +74,14 @@ cd g:\GITHUB\calendario-lebeche
 $env:JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
 $env:ANDROID_HOME='C:\Users\jesus\AppData\Local\Android\Sdk'
 .\gradlew.bat :app:assembleDebug      # APK de desarrollo
-.\gradlew.bat :app:assembleRelease    # APK firmado (Google Play / instalación directa)
+.\gradlew.bat :app:assembleRelease    # APK firmado (instalación directa)
+.\gradlew.bat :app:bundleRelease      # AAB firmado (subir a Google Play)
 ```
 
 Salidas:
 - Debug: `app/build/outputs/apk/debug/app-debug.apk`
-- Release: `app/build/outputs/apk/release/app-release.apk`
+- Release APK: `app/build/outputs/apk/release/app-release.apk`
+- Release AAB: `app/build/outputs/bundle/release/app-release.aab`
 
 ### Regenerar iconos
 
@@ -125,6 +127,21 @@ la única forma de actualizar la app en Google Play.
 - La detección de errores de autenticación CalDAV se muestra de forma genérica (se guarda la
   cuenta aunque el descubrimiento falle; se puede reintentar con "Sincronizar").
 - Las notificaciones de eventos recurrentes cubren los próximos 90 días.
+
+## Mejoras recientes
+- **Instalación release en emuladores**: se desactiva la generación del *baseline profile* (`androidx.profileinstaller`) para evitar el error `INSTALL_BASELINE_PROFILE_FAILED` al instalar el APK release en emuladores x86/x86_64.
+- **Colores de calendario sincronizados en cada sincronización**: el color y el nombre de cada calendario de Synology se actualizan automáticamente en cada sincronización (no solo al conectar la cuenta). El parser de color ahora acepta tanto el formato RGBA como ARGB del canal alfa.
+- **Tipografía Inter**: la app usa la misma tipografía que la PWA (Inter), con títulos en cursiva + negrita como los encabezados de la PWA.
+- **Crear evento en el día seleccionado**: al tocar un día del calendario y pulsar el botón de añadir evento (+), la fecha de inicio/fin queda pre-rellenada con ese día.
+- **Corrección de la navegación**: El botón físico de retroceso del dispositivo ("Atrás") ya no cierra la aplicación repentinamente. Se utiliza `BackHandler` de Jetpack Compose para volver suavemente a la pantalla principal sin interrumpir la experiencia.
+- **Configuración por defecto del NAS**: Se actualizó el nombre de cuenta por defecto a "lebeche", evitando conectar a cuentas antiguas de prueba. Y se adaptó el mensaje a "contacta con la organización". La ruta por defecto se mantiene en `https://pelotxo.synology.me:5001/caldav/`.
+- **Soporte corregido para los Colores del Calendario**: El color de los calendarios ya se muestra correctamente en Android. El parser ahora tiene en cuenta el canal alfa (ARGB/RGBA) enviado por el estándar de Apple/Synology que antes ocasionaba que los colores se renderizaran como invisibles o transparentes.
+- **Etiquetas de Eventos (Categorías)**: Las etiquetas añadidas a cada evento ahora son completamente visibles en la vista rápida (`EventRow`).
+- **Mejora Visual Profesional**: Se aplicaron ajustes sutiles y profesionales en las tarjetas de eventos (`ElevatedCard`), y se agregó una discreta franja vertical de color indicativa a la izquierda del evento, similar a los clientes de calendario profesionales (como Google Calendar o Outlook), preservando al mismo tiempo la sencillez del diseño original.
+
+## Versión actual
+- **Versión**: 2.4.0 (Code 13)
+- **Diseño**: Adaptado a la paleta de colores y la tipografía (**Inter**) de la PWA Barrioteca Acalencá (`--color-cream: #f5f5f0`, `--color-ink: #141414`, `--color-primary: #8a5a00`, `--color-accent: #e8a33d`).
 
 ---
 

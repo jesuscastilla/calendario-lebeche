@@ -27,7 +27,7 @@ data class AddAccountResult(
 /** Resultado de guardar un evento (devuelve el error si no pudo subirse). */
 data class SaveEventResult(
     val eventId: Long,
-    val error: String? = null,
+    val error: String? = null
 )
 
 /** Punto de acceso a datos + lógica de sincronización para la interfaz. */
@@ -46,7 +46,7 @@ class Repository private constructor(private val context: Context) {
         const val DEFAULT_CALDAV_URL = "https://pelotxo.synology.me:5001/caldav/"
 
         /** Nombre por defecto para la cuenta principal. */
-        const val DEFAULT_ACCOUNT_NAME = "Pelotxo"
+        const val DEFAULT_ACCOUNT_NAME = "lebeche"
 
         fun get(context: Context): Repository =
             instance ?: synchronized(this) {
@@ -85,7 +85,7 @@ class Repository private constructor(private val context: Context) {
         val e = event.copy(remoteUid = uid, dirty = true)
 
         val cal = db.getCalendar(e.calendarId)
-        if (cal != null && cal.readOnly) {
+        if (cal?.readOnly == true) {
             return@withContext SaveEventResult(e.id, "Este calendario es de solo lectura")
         }
 
@@ -96,18 +96,18 @@ class Repository private constructor(private val context: Context) {
 
         val saved = db.getEvent(id) ?: return@withContext SaveEventResult(id)
 
-        if (cal != null) {
-            SystemCalendarSync.upsertEvent(context, saved, cal)?.let { db.setEventSystemId(id, it) }
+        cal?.let {
+            SystemCalendarSync.upsertEvent(context, saved, it)?.let { sysId -> db.setEventSystemId(id, sysId) }
         }
         ReminderScheduler.scheduleForEvent(context, saved)
 
         try {
-            if (cal != null) {
-                val account = db.getAccount(cal.accountId)
+            cal?.let {
+                val account = db.getAccount(it.accountId)
                 if (account != null) {
-                    val put = caldav.putEvent(account, cal, saved, ICalHelper.serialize(saved), saved.etag)
+                    val put = caldav.putEvent(account, it, saved, ICalHelper.serialize(saved), saved.etag)
                     db.markEventRemote(id, uid, put.href, put.etag)
-                    db.setEventDirty(id, false)
+                    db.setEventDirty(id, dirty = false)
                 }
             }
             SaveEventResult(id)
@@ -219,6 +219,11 @@ class Repository private constructor(private val context: Context) {
     }
 
     private fun syncAccount(account: Account, errors: MutableList<String>) {
+        try {
+            refreshCalendars(account)
+        } catch (e: Exception) {
+            errors.add("${account.name}: ${e.message ?: e.javaClass.simpleName}")
+        }
         val calendars = db.getCalendars(account.id).filter { it.enabled }
         for (cal in calendars) {
             try {
@@ -229,6 +234,34 @@ class Repository private constructor(private val context: Context) {
             }
         }
         db.updateAccountSyncTime(account.id, System.currentTimeMillis())
+    }
+
+    /**
+     * Re-descubre los calendarios de la cuenta y actualiza sus metadatos locales
+     * (nombre, color y solo-lectura) para reflejar los cambios hechos en Synology
+     * (p. ej. el color de un calendario) sin tener que volver a añadir la cuenta.
+     */
+    private fun refreshCalendars(account: Account) {
+        val result = caldav.discover(account)
+        val existing = db.getCalendars(account.id)
+        val byHref = existing.associateBy { it.href.trimEnd('/') }
+        for (c in result.calendars) {
+            val key = c.href.trimEnd('/')
+            val local = byHref[key]
+            if (local != null) {
+                if (local.color != c.color || local.displayName != c.displayName || local.readOnly != c.readOnly) {
+                    db.updateCalendarMeta(local.id, c.displayName, c.color, c.readOnly)
+                    SystemCalendarSync.updateCalendar(
+                        context,
+                        local.copy(displayName = c.displayName, color = c.color, readOnly = c.readOnly)
+                    )
+                }
+            } else {
+                val newId = db.insertCalendar(c.copy(accountId = account.id))
+                SystemCalendarSync.ensureCalendar(context, c.copy(accountId = account.id, id = newId))
+                    ?.let { db.setCalendarSystemId(newId, it) }
+            }
+        }
     }
 
     private fun pushDirty(account: Account, cal: CalInfo) {
@@ -267,7 +300,7 @@ class Repository private constructor(private val context: Context) {
         val result = caldav.fetchEvents(account, cal, cal.syncToken)
 
         val local = db.getEventsByCalendar(cal.id)
-        val byHref = local.filter { it.remoteHref != null }.associateBy { it.remoteHref!! }
+        val byHref = local.asSequence().filter { it.remoteHref != null }.associateBy { it.remoteHref!! }
         val byUid = local.filter { it.remoteUid != null }.associateBy { it.remoteUid!! }
 
         for (href in result.deletedHrefs) {

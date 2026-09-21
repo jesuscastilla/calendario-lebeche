@@ -9,7 +9,7 @@ object Prefs {
     private const val KEY_DEFAULT_REMINDER = "default_reminder_minutes"
 
     /** Recordatorio por defecto (minutos antes) aplicado a eventos sin aviso propio. */
-    const val DEFAULT_DEFAULT_REMINDER = 15
+    const val DEFAULT_DEFAULT_REMINDER = 1440
 
     fun defaultReminderMinutes(context: Context): Int =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE)

@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.lebeche.calendario.Repository
 import com.lebeche.calendario.data.CalInfo
 import com.lebeche.calendario.data.Occurrence
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
@@ -24,6 +25,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var calendars by mutableStateOf<List<CalInfo>>(emptyList())
     var isSyncing by mutableStateOf(false)
     var syncMessage by mutableStateOf<String?>(null)
+    var syncDone by mutableStateOf(false)
 
     private var wasInBackground = false
     private var didFirstShowSync = false
@@ -101,11 +103,19 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun sync() {
+        if (isSyncing) return
+        isSyncing = true
+        syncMessage = null
+        syncDone = false
         viewModelScope.launch {
-            isSyncing = true
             val summary = repo.syncAll()
             isSyncing = false
-            syncMessage = if (summary.errors.isEmpty()) "Sincronizado" else "Errores: ${summary.errors.joinToString()}"
+            syncMessage = if (summary.errors.isEmpty()) "Sincronizado" else "Errores: ${summary.errors.joinToString(", ")}"
+            if (summary.errors.isEmpty()) {
+                syncDone = true
+                delay(2000)
+                syncDone = false
+            }
             refresh()
         }
     }

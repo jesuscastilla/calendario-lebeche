@@ -147,6 +147,7 @@ class CalDavClient {
             val name = r.props["displayname"]?.takeIf { it.isNotBlank() }
                 ?: href.substringAfterLast('/').takeIf { it.isNotBlank() }
                 ?: href
+            if (BuildConfig.DEBUG) Log.d(TAG, "calendar-color de '$name' = '${r.props["calendar-color"]}'")
             result.add(
                 CalInfo(
                     accountId = account.id,
@@ -211,7 +212,7 @@ class CalDavClient {
                     if ((r.code == 301 || r.code == 302 || r.code == 303 || r.code == 307 || r.code == 308) &&
                         loc != null && redirects < 5
                     ) {
-                        current = try { current.toHttpUrl().resolve(loc)?.toString() ?: current } catch (e: Exception) { current }
+                        current = try { current.toHttpUrl().resolve(loc)?.toString() ?: current } catch (_: Exception) { current }
                         redirects++
                     } else {
                         return null
@@ -336,8 +337,12 @@ class CalDavClient {
             .addInterceptor(LoggingInterceptor)
         if (insecure) {
             val trustAll = @Suppress("TrustAllX509TrustManager", "CustomX509TrustManager") object : X509TrustManager {
-                override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
-                override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
+                override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {
+                // Insecure TLS context, explicitly allowing all client certificates
+            }
+            override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {
+                // Insecure TLS context, explicitly allowing all server certificates
+            }
                 override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
             }
             val sslContext = SSLContext.getInstance("TLS")
@@ -361,7 +366,7 @@ class CalDavClient {
                 "current-user-privilege-set" -> sb.append("<D:current-user-privilege-set/>")
                 "getctag" -> sb.append("<CS:getctag/>")
                 "sync-token" -> sb.append("<D:sync-token/>")
-                "calendar-color" -> sb.append("<CS:calendar-color/><A:calendar-color/>")
+                "calendar-color" -> sb.append("<C:calendar-color/><CS:calendar-color/><A:calendar-color/>")
                 "getetag" -> sb.append("<D:getetag/>")
                 "calendar-data" -> sb.append("<C:calendar-data/>")
             }
@@ -449,11 +454,23 @@ class CalDavClient {
 
     private fun parseColor(s: String?): Int {
         if (s.isNullOrBlank()) return 0xFF8FD6EF.toInt()
-        val t = s.trim().removePrefix("#")
+        val t = s.trim().removePrefix("#").trim()
         return try {
             when (t.length) {
                 6 -> 0xFF000000.toInt() or t.toInt(16)
-                8 -> t.toLong(16).toInt()
+                8 -> {
+                    // Acepta RGBA (alfa al final, estándar Apple/Synology) y ARGB (alfa al
+                    // inicio). Se detecta el alfa como el extremo opaco ("FF"); si hay
+                    // ambigüedad (ambos extremos opacos) se prioriza RGBA (Apple/Synology).
+                    val first = t.substring(0, 2)
+                    val last = t.substring(6, 8)
+                    val argb = if (first.equals("FF", ignoreCase = true) && !last.equals("FF", ignoreCase = true)) {
+                        t // ARGB (alfa al inicio)
+                    } else {
+                        last + t.substring(0, 6) // RGBA (alfa al final) -> ARGB
+                    }
+                    argb.toLong(16).toInt()
+                }
                 else -> 0xFF8FD6EF.toInt()
             }
         } catch (e: Exception) {

@@ -43,7 +43,8 @@ object ICalHelper {
             dtend = end,
             allDay = allDay,
             rrule = extractRrule(data),
-            reminderMinutes = extractReminderMinutes(data)
+            reminderMinutes = extractReminderMinutes(data),
+            eventColor = extractColor(data)
         )
     }
 
@@ -154,6 +155,35 @@ object ICalHelper {
             }
         }
         return result.distinct()
+    }
+
+    private fun extractColor(data: String): Int? {
+        val lines = data.replace("\r\n", "\n").split("\n")
+        for (line in lines) {
+            if (line.startsWith("COLOR", ignoreCase = true) && line.contains(':')) {
+                val s = line.substringAfter(':').trim()
+                val t = s.removePrefix("#")
+                return try {
+                    when (t.length) {
+                        6 -> 0xFF000000.toInt() or t.toInt(16)
+                        8 -> {
+                            val first = t.substring(0, 2)
+                            val last = t.substring(6, 8)
+                            val argb = if (first.equals("FF", ignoreCase = true) && !last.equals("FF", ignoreCase = true)) {
+                                t
+                            } else {
+                                last + t.substring(0, 6)
+                            }
+                            argb.toLong(16).toInt()
+                        }
+                        else -> null
+                    }
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        }
+        return null
     }
 
     /**

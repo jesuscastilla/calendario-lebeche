@@ -65,7 +65,7 @@ private val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.get
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EventEditScreen(eventId: Long?, onDone: () -> Unit) {
+fun EventEditScreen(eventId: Long?, defaultDate: LocalDate? = null, onDone: () -> Unit) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val repo = remember { Repository.get(context.applicationContext) }
@@ -79,8 +79,8 @@ fun EventEditScreen(eventId: Long?, onDone: () -> Unit) {
     var allDay by remember { mutableStateOf(false) }
     var calendars by remember { mutableStateOf<List<CalInfo>>(emptyList()) }
     var selectedCalendarId by remember { mutableLongStateOf(0L) }
-    var startDate by remember { mutableStateOf(LocalDate.now()) }
-    var endDate by remember { mutableStateOf(LocalDate.now()) }
+    var startDate by remember { mutableStateOf(defaultDate ?: LocalDate.now()) }
+    var endDate by remember { mutableStateOf(defaultDate ?: LocalDate.now()) }
     var startHour by remember { mutableIntStateOf(9) }
     var startMinute by remember { mutableIntStateOf(0) }
     var endHour by remember { mutableIntStateOf(10) }

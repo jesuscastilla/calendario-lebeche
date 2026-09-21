@@ -1,8 +1,5 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
     id 'com.android.application'
-    id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.kotlin.plugin.compose'
 }
 
@@ -14,15 +11,15 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace 'com.lebeche.calendario'
+    namespace = 'com.lebeche.calendario'
     compileSdk 36
 
     defaultConfig {
         applicationId 'com.lebeche.calendario'
         minSdk 28
         targetSdk 36
-        versionCode 11
-        versionName '2.2.0'
+        versionCode 13
+        versionName '2.4.0'
     }
 
     signingConfigs {
@@ -39,10 +36,10 @@ android {
     buildTypes {
         release {
             minifyEnabled true
-            shrinkResources true
+            shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (keystorePropertiesFile.exists()) {
-                signingConfig signingConfigs.release
+                signingConfig = signingConfigs.release
             }
         }
     }
@@ -53,18 +50,12 @@ android {
     }
 
     buildFeatures {
-        compose true
-        buildConfig true
+        compose = true
+        buildConfig = true
     }
 
     lint {
-        checkReleaseBuilds false
-    }
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget = JvmTarget.JVM_11
+        checkReleaseBuilds = false
     }
 }
 
@@ -90,4 +81,17 @@ dependencies {
     // In-App Updates (Google Play Core)
     implementation 'com.google.android.play:app-update:2.1.0'
     implementation 'com.google.android.play:app-update-ktx:2.1.0'
+}
+
+// Evita INSTALL_BASELINE_PROFILE_FAILED al instalar el build release en emuladores:
+// androidx.profileinstaller embebe un "baseline profile" que falla en x86/x86_64.
+configurations.configureEach {
+    exclude group: 'androidx.profileinstaller', module: 'profileinstaller'
+}
+
+// No genera baseline/art profiles (evita que se embeban en el APK release).
+tasks.configureEach {
+    if (name.contains("ArtProfile") || name.contains("StartupProfile")) {
+        enabled = false
+    }
 }

@@ -1,7 +1,16 @@
 package com.lebeche.calendario.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.getValue
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -27,13 +36,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material3.Card
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -45,6 +60,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,7 +83,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private val DefaultCalendarColor = 0xFF8FD6EF.toInt()
+private const val DefaultCalendarColor = 0xFF8FD6EF.toInt()
 
 private fun occurrenceDate(o: Occurrence): LocalDate =
     if (o.allDay) Instant.ofEpochMilli(o.startMillis).atZone(ZoneOffset.UTC).toLocalDate()
@@ -81,11 +99,11 @@ private fun timeLabel(o: Occurrence): String =
 @Composable
 fun MainScreen(
     onOpenEvent: (Long) -> Unit,
-    onCreateEvent: () -> Unit,
+    onCreateEvent: (LocalDate) -> Unit,
     onOpenSettings: () -> Unit
 ) {
     val vm: MainViewModel = viewModel()
-    val colorMap = vm.calendars.associateBy({ it.id }, { it.color })
+    val colorMap = vm.calendars.associateBy(keySelector = { it.id }, valueTransform = { it.color })
 
     // Carga datos y, la primera vez que se abre la app en este proceso, sincroniza.
     LaunchedEffect(Unit) {
@@ -113,24 +131,56 @@ fun MainScreen(
                 title = { Text("Calendario Lebeche") },
                 actions = {
                     TextButton(onClick = { vm.goToToday() }) { Text("Hoy") }
-                    if (vm.isSyncing) {
-                        CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    IconButton(onClick = { vm.sync() }, enabled = !vm.isSyncing) {
+                        if (vm.syncDone) {
+                            Icon(Icons.Filled.Check, "Sincronizado", tint = Color(0xFF4CAF50))
+                        } else {
+                            val infiniteTransition = rememberInfiniteTransition()
+                            val rotation by infiniteTransition.animateFloat(
+                                initialValue = 0f,
+                                targetValue = 360f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(1000, easing = LinearEasing),
+                                    repeatMode = RepeatMode.Restart
+                                )
+                            )
+                            Icon(
+                                Icons.Filled.Sync, "Sincronizar",
+                                modifier = if (vm.isSyncing) Modifier.rotate(rotation) else Modifier
+                            )
+                        }
                     }
-                    IconButton(onClick = { vm.sync() }) { Icon(Icons.Filled.Sync, "Sincronizar") }
                     IconButton(onClick = onOpenSettings) { Icon(Icons.Filled.Settings, "Ajustes") }
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onCreateEvent) { Icon(Icons.Filled.Add, "Nuevo evento") }
+            FloatingActionButton(onClick = { onCreateEvent(vm.selectedDate) }) { Icon(Icons.Filled.Add, "Nuevo evento") }
         }
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             vm.syncMessage?.let {
-                Text(it, Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.secondary)
+                if (it != "Sincronizado") {
+                    Text(it, Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.error)
+                }
             }
-            MonthHeader(vm)
-            MonthGrid(vm.month, vm.selectedDate, vm.occurrences, colorMap, vm::select)
+            var dragX by remember { mutableFloatStateOf(0f) }
+            Column(
+                Modifier.pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            if (dragX > 100) vm.prevMonth()
+                            else if (dragX < -100) vm.nextMonth()
+                            dragX = 0f
+                        }
+                    ) { _, dragAmount ->
+                        dragX += dragAmount
+                    }
+                }
+            ) {
+                MonthHeader(vm)
+                MonthGrid(vm.month, vm.selectedDate, vm.occurrences, colorMap, vm::select)
+            }
             DayAgenda(Modifier.weight(1f), vm.selectedDate, vm.occurrences, colorMap, onOpenEvent)
         }
     }
@@ -144,7 +194,7 @@ private fun MonthHeader(vm: MainViewModel) {
     ) {
         IconButton(onClick = { vm.prevMonth() }) { Icon(Icons.Filled.ChevronLeft, "Mes anterior") }
         Text(
-            DateTimeFormatter.ofPattern("MMMM yyyy", Locale("es", "ES")).format(vm.month),
+            DateTimeFormatter.ofPattern("MMMM yyyy", Locale.forLanguageTag("es-ES")).format(vm.month),
             Modifier.weight(1f),
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.titleMedium
@@ -257,9 +307,10 @@ private fun DayCell(
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     events.take(3).forEach { e ->
+                        val evColor = e.event.eventColor ?: colorMap[e.event.calendarId] ?: DefaultCalendarColor
                         Box(
                             Modifier.size(5.dp).clip(CircleShape)
-                                .background(Color(colorMap[e.event.calendarId] ?: DefaultCalendarColor))
+                                .background(Color(evColor))
                         )
                     }
                 }
@@ -301,23 +352,58 @@ private fun DayAgenda(
 
 @Composable
 private fun EventRow(o: Occurrence, colorMap: Map<Long, Int>, onOpenEvent: (Long) -> Unit) {
-    Card(
-        Modifier.fillMaxWidth().padding(vertical = 3.dp).clickable { onOpenEvent(o.event.id) },
-        shape = MaterialTheme.shapes.medium
+    val eventColor = o.event.eventColor ?: colorMap[o.event.calendarId] ?: DefaultCalendarColor
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { onOpenEvent(o.event.id) },
+        shape = MaterialTheme.shapes.medium,
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.height(IntrinsicSize.Min)) {
             Box(
-                Modifier.size(10.dp).clip(CircleShape)
-                    .background(Color(colorMap[o.event.calendarId] ?: DefaultCalendarColor))
+                Modifier
+                    .width(6.dp)
+                    .fillMaxHeight()
+                    .background(Color(eventColor))
             )
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                Text(o.event.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
-                if (o.event.location.isNotBlank()) {
-                    Text(o.event.location, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(o.event.title, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                    if (o.event.location.isNotBlank()) {
+                        Text(o.event.location, style = MaterialTheme.typography.bodySmall, maxLines = 1, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (o.event.categories.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .padding(top = 6.dp)
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            o.event.categories.forEach { cat ->
+                                Surface(
+                                    shape = MaterialTheme.shapes.small,
+                                    color = MaterialTheme.colorScheme.secondaryContainer
+                                ) {
+                                    Text(
+                                        text = cat,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
+                Spacer(Modifier.width(8.dp))
+                Text(timeLabel(o), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             }
-            Text(timeLabel(o), style = MaterialTheme.typography.labelMedium)
         }
     }
 }

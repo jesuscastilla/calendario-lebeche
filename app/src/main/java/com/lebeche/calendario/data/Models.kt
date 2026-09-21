@@ -36,6 +36,7 @@ data class Event(
     val description: String = "",
     val location: String = "",
     val categories: List<String> = emptyList(),
+    val eventColor: Int? = null,
     val dtstart: Long,
     val dtend: Long,
     val allDay: Boolean = false,

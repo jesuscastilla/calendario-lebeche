@@ -10,7 +10,7 @@ import android.database.sqlite.SQLiteOpenHelper
  * Base de datos local (SQLite) de la aplicación.
  * Almacena cuentas, calendarios remotos y eventos; la contraseña va cifrada.
  */
-class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calendario.db", null, 4) {
+class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calendario.db", null, 5) {
 
     companion object {
         @Volatile
@@ -76,13 +76,20 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calen
                 reminder_minutes INTEGER NOT NULL DEFAULT -1,
                 dirty INTEGER NOT NULL DEFAULT 0,
                 deleted INTEGER NOT NULL DEFAULT 0,
-                system_event_id INTEGER
+                system_event_id INTEGER,
+                event_color INTEGER
             )
             """.trimIndent()
         )
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 5) {
+            db.execSQL("ALTER TABLE events ADD COLUMN event_color INTEGER")
+        }
+        if (oldVersion < 4) {
+            // just to be safe
+        }
         if (oldVersion < 3) {
             db.execSQL("ALTER TABLE events ADD COLUMN categories TEXT NOT NULL DEFAULT ''")
         }
@@ -203,6 +210,15 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calen
         writableDatabase.update("calendars", cv, "id=?", arrayOf(id.toString()))
     }
 
+    fun updateCalendarMeta(id: Long, displayName: String, color: Int, readOnly: Boolean) {
+        val cv = ContentValues().apply {
+            put("display_name", displayName)
+            put("color", color)
+            put("read_only", if (readOnly) 1 else 0)
+        }
+        writableDatabase.update("calendars", cv, "id=?", arrayOf(id.toString()))
+    }
+
     private fun readCalendar(c: Cursor): CalInfo = CalInfo(
         id = c.getLong(c.getColumnIndexOrThrow("id")),
         accountId = c.getLong(c.getColumnIndexOrThrow("account_id")),
@@ -299,6 +315,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calen
         put("dirty", if (e.dirty) 1 else 0)
         put("deleted", if (e.deleted) 1 else 0)
         put("system_event_id", e.systemEventId)
+        put("event_color", e.eventColor)
     }
 
     private fun readEvent(c: Cursor): Event = Event(
@@ -320,6 +337,9 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, "calen
         deleted = c.getInt(c.getColumnIndexOrThrow("deleted")) == 1,
         systemEventId = c.getLong(c.getColumnIndexOrThrow("system_event_id")).let {
             if (c.isNull(c.getColumnIndexOrThrow("system_event_id"))) null else it
+        },
+        eventColor = c.getInt(c.getColumnIndexOrThrow("event_color")).let {
+            if (c.isNull(c.getColumnIndexOrThrow("event_color"))) null else it
         }
     )
 }
