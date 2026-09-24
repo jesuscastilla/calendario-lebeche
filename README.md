@@ -141,7 +141,12 @@ la única forma de actualizar la app en Google Play.
 
 ## Versión actual
 - **Versión**: 2.4.0 (Code 13)
-- **Diseño**: Adaptado a la paleta de colores y la tipografía (**Inter**) de la PWA Barrioteca Acalencá (`--color-cream: #f5f5f0`, `--color-ink: #141414`, `--color-primary: #8a5a00`, `--color-accent: #e8a33d`).
+- **Tipografías Lebeche**: Se han introducido e integrado las tres tipografías del manual de marca corporativa ("Courgette" para logotipos/títulos destacados, "Garet" para subtítulos y "Open Sans" para el cuerpo del texto), en vez de "Inter".
+- **Diseño**: Adaptado a la paleta de colores de la PWA Barrioteca Acalencá (`--color-cream: #f5f5f0`, `--color-ink: #141414`, `--color-primary: #8a5a00`, `--color-accent: #e8a33d`).
+- **Vista mensual rediseñada**: Adaptación fidedigna de la vista mensual a las "best practices" modernas (como Google Calendar o Outlook), sin fila duplicada de los días de la semana y usando una retícula sutil. Eventos dibujados como píldoras de colores sincronizados.
+- **Sincronización robusta de colores de calendario**: Resuelto el problema del solapamiento de etiquetas vacías provenientes del Synology CalDAV Server (se parsea el primer color no vacío disponible en las etiquetas `A:calendar-color` o `CS:calendar-color` ignorando las consiguientes etiquetas vacías).
+- **Responsive adaptativo**: Solucionado el problema de diseño en pantallas grandes/horizontales dividiendo el contenido a dos columnas (Mes + Agenda).
+- **Cierre del bucle Android Calendar Sync**: Exportación explícita del `EVENT_COLOR` a la base de datos local para que los colores brillen de igual forma en la aplicación general Google Calendar.
 
 ---
 

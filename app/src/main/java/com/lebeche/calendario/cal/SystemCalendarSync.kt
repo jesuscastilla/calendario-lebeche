@@ -64,10 +64,12 @@ object SystemCalendarSync {
                 put(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, cal.displayName)
                 put(CalendarContract.Calendars.CALENDAR_COLOR, cal.color)
             }
-            context.contentResolver.update(
-                ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, id),
-                cv, null, null
-            )
+            val uri = ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, id).buildUpon()
+                .appendQueryParameter(CalendarContract.CALLER_IS_SYNCADAPTER, "true")
+                .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_NAME, ACCOUNT_NAME)
+                .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_TYPE, ACCOUNT_TYPE)
+                .build()
+            context.contentResolver.update(uri, cv, null, null)
         }
     }
 
@@ -85,38 +87,50 @@ object SystemCalendarSync {
             put(CalendarContract.Events.ALL_DAY, if (event.allDay) 1 else 0)
             put(CalendarContract.Events.EVENT_TIMEZONE, "UTC")
             if (!event.rrule.isNullOrBlank()) put(CalendarContract.Events.RRULE, event.rrule)
+            if (event.eventColor != null) {
+                put(CalendarContract.Events.EVENT_COLOR, event.eventColor)
+            } else {
+                putNull(CalendarContract.Events.EVENT_COLOR)
+            }
         }
 
         val existing = event.systemEventId
+        val uri = CalendarContract.Events.CONTENT_URI.buildUpon()
+            .appendQueryParameter(CalendarContract.CALLER_IS_SYNCADAPTER, "true")
+            .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_NAME, ACCOUNT_NAME)
+            .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_TYPE, ACCOUNT_TYPE)
+            .build()
+            
         return if (existing != null) {
-            context.contentResolver.update(
-                ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, existing),
-                cv, null, null
-            )
+            val updateUri = ContentUris.withAppendedId(uri, existing)
+            context.contentResolver.update(updateUri, cv, null, null)
             existing
         } else {
-            context.contentResolver.insert(CalendarContract.Events.CONTENT_URI, cv)
-                ?.lastPathSegment?.toLongOrNull()
+            context.contentResolver.insert(uri, cv)?.lastPathSegment?.toLongOrNull()
         }
     }
 
     fun deleteEvent(context: Context, event: Event) {
         if (!hasPermission(context)) return
         event.systemEventId?.let {
-            context.contentResolver.delete(
-                ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, it),
-                null, null
-            )
+            val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, it).buildUpon()
+                .appendQueryParameter(CalendarContract.CALLER_IS_SYNCADAPTER, "true")
+                .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_NAME, ACCOUNT_NAME)
+                .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_TYPE, ACCOUNT_TYPE)
+                .build()
+            context.contentResolver.delete(uri, null, null)
         }
     }
 
     fun deleteCalendar(context: Context, cal: CalInfo) {
         if (!hasPermission(context)) return
         cal.systemCalendarId?.let {
-            context.contentResolver.delete(
-                ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, it),
-                null, null
-            )
+            val uri = ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, it).buildUpon()
+                .appendQueryParameter(CalendarContract.CALLER_IS_SYNCADAPTER, "true")
+                .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_NAME, ACCOUNT_NAME)
+                .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_TYPE, ACCOUNT_TYPE)
+                .build()
+            context.contentResolver.delete(uri, null, null)
         }
     }
 }

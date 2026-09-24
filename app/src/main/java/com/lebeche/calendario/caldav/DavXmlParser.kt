@@ -67,14 +67,14 @@ object DavXmlParser {
                         when {
                             path.endsWith("/response/href") -> current.href = text
                             path.endsWith("/response/status") -> current.status = text
-                            path.endsWith("/prop/displayname") -> current.props["displayname"] = text
-                            path.endsWith("/prop/calendar-color") -> current.props["calendar-color"] = text
-                            path.endsWith("/prop/getctag") -> current.props["getctag"] = text
-                            path.endsWith("/prop/sync-token") -> current.props["sync-token"] = text
-                            path.endsWith("/prop/getetag") -> current.props["getetag"] = text
-                            path.endsWith("/prop/calendar-data") -> current.props["calendar-data"] = text
-                            path.endsWith("/prop/current-user-principal/href") -> current.props["current-user-principal"] = text
-                            path.endsWith("/prop/calendar-home-set/href") -> current.props["calendar-home-set"] = text
+                            path.endsWith("/prop/displayname") -> if (text.isNotBlank()) current.props["displayname"] = text
+                            path.endsWith("/prop/calendar-color") -> if (text.isNotBlank()) current.props["calendar-color"] = text
+                            path.endsWith("/prop/getctag") -> if (text.isNotBlank()) current.props["getctag"] = text
+                            path.endsWith("/prop/sync-token") -> if (text.isNotBlank()) current.props["sync-token"] = text
+                            path.endsWith("/prop/getetag") -> if (text.isNotBlank()) current.props["getetag"] = text
+                            path.endsWith("/prop/calendar-data") -> if (text.isNotBlank()) current.props["calendar-data"] = text
+                            path.endsWith("/prop/current-user-principal/href") -> if (text.isNotBlank()) current.props["current-user-principal"] = text
+                            path.endsWith("/prop/calendar-home-set/href") -> if (text.isNotBlank()) current.props["calendar-home-set"] = text
                             path.endsWith("/prop/resourcetype/collection") -> current.props["collection"] = "1"
                             path.endsWith("/prop/resourcetype/calendar") -> current.props["calendar"] = "1"
                         }

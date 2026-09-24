@@ -90,6 +90,7 @@ fun CalendarApp() {
                     )
                     is Screen.Edit -> EventEditScreen(
                         eventId = s.eventId,
+                        defaultDate = s.defaultDate,
                         onDone = { screen = Screen.Main }
                     )
                     is Screen.Settings -> SettingsScreen(

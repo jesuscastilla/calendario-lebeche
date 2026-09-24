@@ -7,11 +7,9 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.lebeche.calendario.R
@@ -22,18 +20,19 @@ val PwaInk = Color(0xFF141414)
 val PwaPrimary = Color(0xFF8A5A00)
 val PwaAccent = Color(0xFFE8A33D)
 
-// Tipografía Inter (la misma familia que usa la PWA). Se usan fuentes variables
-// para cubrir todos los pesos (400..700) y la cursiva.
-@OptIn(ExperimentalTextApi::class)
-private val InterFamily = FontFamily(
-    Font(R.font.inter, FontWeight.Normal, FontStyle.Normal),
-    Font(R.font.inter_italic, FontWeight.Normal, FontStyle.Italic),
-    Font(R.font.inter, FontWeight.Medium, FontStyle.Normal, variationSettings = FontVariation.Settings(FontVariation.weight(500))),
-    Font(R.font.inter_italic, FontWeight.Medium, FontStyle.Italic, variationSettings = FontVariation.Settings(FontVariation.weight(500))),
-    Font(R.font.inter, FontWeight.SemiBold, FontStyle.Normal, variationSettings = FontVariation.Settings(FontVariation.weight(600))),
-    Font(R.font.inter_italic, FontWeight.SemiBold, FontStyle.Italic, variationSettings = FontVariation.Settings(FontVariation.weight(600))),
-    Font(R.font.inter, FontWeight.Bold, FontStyle.Normal, variationSettings = FontVariation.Settings(FontVariation.weight(700))),
-    Font(R.font.inter_italic, FontWeight.Bold, FontStyle.Italic, variationSettings = FontVariation.Settings(FontVariation.weight(700))),
+// Tipografías Lebeche: Courgette (Madre), Garet (Títulos) y Open Sans (Cuerpo de texto)
+private val CourgetteFamily = FontFamily(Font(R.font.courgette, FontWeight.Normal, FontStyle.Normal))
+
+private val GaretFamily = FontFamily(
+    Font(R.font.garet_book, FontWeight.Normal, FontStyle.Normal),
+    Font(R.font.garet_heavy, FontWeight.Bold, FontStyle.Normal)
+)
+
+private val OpenSansFamily = FontFamily(
+    Font(R.font.opensans_regular, FontWeight.Normal, FontStyle.Normal),
+    Font(R.font.opensans_italic, FontWeight.Normal, FontStyle.Italic),
+    Font(R.font.opensans_bold, FontWeight.Bold, FontStyle.Normal),
+    Font(R.font.opensans_bolditalic, FontWeight.Bold, FontStyle.Italic)
 )
 
 private val LightColors = lightColorScheme(
@@ -62,24 +61,24 @@ private val AppShapes = Shapes(
     large = RoundedCornerShape(24.dp)
 )
 
-// Tipografía con Inter. Los títulos van en cursiva + negrita, como los encabezados de la PWA.
+// Tipografía de Lebeche. Los títulos van en Garet (o Open Sans Bold), el texto en Open Sans, y el display principal en Courgette.
 private val AppTypography = Typography().run {
     Typography(
-        displayLarge = displayLarge.copy(fontFamily = InterFamily, fontStyle = FontStyle.Italic, fontWeight = FontWeight.Bold),
-        displayMedium = displayMedium.copy(fontFamily = InterFamily, fontStyle = FontStyle.Italic, fontWeight = FontWeight.Bold),
-        displaySmall = displaySmall.copy(fontFamily = InterFamily, fontStyle = FontStyle.Italic, fontWeight = FontWeight.Bold),
-        headlineLarge = headlineLarge.copy(fontFamily = InterFamily, fontStyle = FontStyle.Italic, fontWeight = FontWeight.Bold),
-        headlineMedium = headlineMedium.copy(fontFamily = InterFamily, fontStyle = FontStyle.Italic, fontWeight = FontWeight.Bold),
-        headlineSmall = headlineSmall.copy(fontFamily = InterFamily, fontStyle = FontStyle.Italic, fontWeight = FontWeight.Bold),
-        titleLarge = titleLarge.copy(fontFamily = InterFamily, fontStyle = FontStyle.Italic, fontWeight = FontWeight.Bold),
-        titleMedium = titleMedium.copy(fontFamily = InterFamily),
-        titleSmall = titleSmall.copy(fontFamily = InterFamily),
-        bodyLarge = bodyLarge.copy(fontFamily = InterFamily),
-        bodyMedium = bodyMedium.copy(fontFamily = InterFamily),
-        bodySmall = bodySmall.copy(fontFamily = InterFamily),
-        labelLarge = labelLarge.copy(fontFamily = InterFamily),
-        labelMedium = labelMedium.copy(fontFamily = InterFamily),
-        labelSmall = labelSmall.copy(fontFamily = InterFamily),
+        displayLarge = displayLarge.copy(fontFamily = CourgetteFamily, fontWeight = FontWeight.Normal),
+        displayMedium = displayMedium.copy(fontFamily = CourgetteFamily, fontWeight = FontWeight.Normal),
+        displaySmall = displaySmall.copy(fontFamily = CourgetteFamily, fontWeight = FontWeight.Normal),
+        headlineLarge = headlineLarge.copy(fontFamily = CourgetteFamily, fontWeight = FontWeight.Normal),
+        headlineMedium = headlineMedium.copy(fontFamily = CourgetteFamily, fontWeight = FontWeight.Normal),
+        headlineSmall = headlineSmall.copy(fontFamily = GaretFamily, fontWeight = FontWeight.Bold),
+        titleLarge = titleLarge.copy(fontFamily = GaretFamily, fontWeight = FontWeight.Bold),
+        titleMedium = titleMedium.copy(fontFamily = GaretFamily, fontWeight = FontWeight.Bold),
+        titleSmall = titleSmall.copy(fontFamily = GaretFamily, fontWeight = FontWeight.Bold),
+        bodyLarge = bodyLarge.copy(fontFamily = OpenSansFamily),
+        bodyMedium = bodyMedium.copy(fontFamily = OpenSansFamily),
+        bodySmall = bodySmall.copy(fontFamily = OpenSansFamily),
+        labelLarge = labelLarge.copy(fontFamily = OpenSansFamily, fontWeight = FontWeight.Bold),
+        labelMedium = labelMedium.copy(fontFamily = OpenSansFamily, fontWeight = FontWeight.Bold),
+        labelSmall = labelSmall.copy(fontFamily = OpenSansFamily, fontWeight = FontWeight.Bold),
     )
 }
 
